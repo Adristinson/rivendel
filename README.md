@@ -22,9 +22,7 @@ Gestor familiar privado de Almudena y Adri. Ahora mismo incluye el **módulo 1: 
 
 1. Crea un repositorio **vacío** llamado `rivendel`. Tiene que ser **público**, porque GitHub Pages solo es gratis para repositorios públicos. El código no contiene datos ni contraseñas.
 2. Sube este código al repositorio.
-3. Ve a **Settings → Secrets and variables → Actions → New repository secret** y crea dos secretos:
-   - `VITE_SUPABASE_URL` → la Project URL.
-   - `VITE_SUPABASE_ANON_KEY` → la clave anon/publishable.
+3. Pon la Project URL y la clave publishable en el archivo `.env.production`.
 4. En **Settings → Pages → Build and deployment → Source**, elige **GitHub Actions**.
 5. Ve a **Actions → Publicar en GitHub Pages → Run workflow**. En un par de minutos la app estará en `https://TU-USUARIO.github.io/rivendel/`.
 

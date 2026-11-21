@@ -11,9 +11,10 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Llamar a keep_alive
         run: |
-          curl -sf -X POST "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/rpc/keep_alive" \
-            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+          set -a; . ./.env.production; set +a
+          curl -sf -X POST "$VITE_SUPABASE_URL/rest/v1/rpc/keep_alive" \
+            -H "apikey: $VITE_SUPABASE_ANON_KEY" \
             -H "Content-Type: application/json" -d '{}'
