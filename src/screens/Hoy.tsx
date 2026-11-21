@@ -5,6 +5,7 @@ import type { Ctx } from '../lib/logic';
 import { groupPending } from '../lib/logic';
 import { proposeTodayOps, todayMenu } from './Comida';
 import { Chevron } from '../icons';
+import { balance, fmtEuro, otherMember } from '../lib/accounts';
 
 function saludo() {
   const h = new Date().getHours();
@@ -20,6 +21,7 @@ export function Hoy({
   name,
   goCompra,
   goComida,
+  goCuentas,
 }: {
   store: Store;
   state: StoreState;
@@ -27,12 +29,15 @@ export function Hoy({
   name: string;
   goCompra: () => void;
   goComida: () => void;
+  goCuentas: () => void;
 }) {
   const groups = groupPending(state.data);
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
   const f = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
   const fecha = f.charAt(0).toUpperCase() + f.slice(1);
   const menu = todayMenu(state.data);
+  const other = otherMember(state.data, ctx.userId ?? '');
+  const bal = other ? balance(state.data.ledger, ctx.userId ?? '', other.user_id) : 0;
   const [rejected, setRejected] = useState<Record<Meal, Set<string>>>({ comida: new Set(), cena: new Set() });
   const [proposed, setProposed] = useState<Record<Meal, string | null>>({ comida: null, cena: null });
 
@@ -114,6 +119,23 @@ export function Hoy({
               <Chevron />
             </button>
           </li>
+          {other && state.data.ledger.length > 0 && (
+            <li>
+              <button onClick={goCuentas}>
+                <span style={{ flex: 1 }}>
+                  Cuentas claras
+                  <div className="sub">
+                    {Math.abs(bal) < 0.005
+                      ? 'Estáis en paz'
+                      : bal > 0
+                        ? `${other.display_name} te debe ${fmtEuro(bal)}`
+                        : `Debes ${fmtEuro(-bal)} a ${other.display_name}`}
+                  </div>
+                </span>
+                <Chevron />
+              </button>
+            </li>
+          )}
           <li>
             <button onClick={goComida}>
               <span style={{ flex: 1 }}>

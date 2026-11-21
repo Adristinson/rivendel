@@ -88,6 +88,21 @@ export interface MenuSlot {
   updated_at: string;
 }
 
+export interface LedgerEntry {
+  id: string;
+  household_id: string;
+  kind: 'gasto' | 'pago';
+  amount: number;
+  concept: string;
+  paid_by: string;
+  other_user: string;
+  payer_share: number; // % del gasto que corresponde a quien paga
+  date: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Data {
   categories: Category[];
   products: Product[];
@@ -96,10 +111,12 @@ export interface Data {
   ingredients: Ingredient[];
   weeks: MenuWeek[];
   slots: MenuSlot[];
+  ledger: LedgerEntry[];
+  members: Member[];
 }
 
-export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots';
-export type Row = Recipe | Ingredient | MenuWeek | MenuSlot;
+export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger';
+export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry;
 
 /** Cambios que se aplican al momento en el móvil y se envían a Supabase cuando hay conexión. */
 export type Op =

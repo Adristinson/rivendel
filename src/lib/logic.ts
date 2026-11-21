@@ -24,6 +24,7 @@ const TABLE_KEY = {
   recipe_ingredients: 'ingredients',
   menu_weeks: 'weeks',
   menu_slots: 'slots',
+  ledger: 'ledger',
 } as const;
 
 /** Columnas que identifican una fila en cada tabla. */
@@ -32,6 +33,7 @@ export const TABLE_PK: Record<Table, string[]> = {
   recipe_ingredients: ['id'],
   menu_weeks: ['household_id', 'week_start'],
   menu_slots: ['household_id', 'week_start', 'day', 'meal'],
+  ledger: ['id'],
 };
 
 function sameKey(table: Table, a: Record<string, unknown>, b: Record<string, unknown>) {
@@ -115,6 +117,7 @@ export function applyOps(data: Data, ops: Op[]): Data {
 export interface Ctx {
   householdId: string;
   by: string;
+  userId?: string;
   now: () => string;
   newId: () => string;
 }

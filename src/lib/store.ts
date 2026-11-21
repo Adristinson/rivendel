@@ -12,7 +12,7 @@ export interface StoreState {
   error: string | null;
 }
 
-const EMPTY: Data = { categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [] };
+const EMPTY: Data = { categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [], ledger: [], members: [] };
 
 interface PgError {
   message?: string;
@@ -86,6 +86,7 @@ export class Store {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'recipe_ingredients' }, () => this.scheduleRefetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_weeks' }, () => this.scheduleRefetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_slots' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger' }, () => this.scheduleRefetch())
       .subscribe();
     void this.flush();
   }
@@ -234,7 +235,7 @@ export class Store {
 
   async refetch(): Promise<void> {
     const h = this.householdId;
-    const [c, p, i, r, g, w, s] = await Promise.all([
+    const [c, p, i, r, g, w, s, l, m] = await Promise.all([
       supabase.from('categories').select('*').eq('household_id', h),
       supabase.from('products').select('*').eq('household_id', h),
       supabase.from('list_items').select('*').eq('household_id', h),
@@ -242,6 +243,8 @@ export class Store {
       supabase.from('recipe_ingredients').select('*').eq('household_id', h),
       supabase.from('menu_weeks').select('*').eq('household_id', h),
       supabase.from('menu_slots').select('*').eq('household_id', h),
+      supabase.from('ledger').select('*').eq('household_id', h),
+      supabase.from('members').select('household_id, user_id, display_name').eq('household_id', h),
     ]);
     const err = c.error ?? p.error ?? i.error;
     // Si el módulo 2 aún no está en la base de datos, la lista sigue funcionando.
@@ -258,6 +261,8 @@ export class Store {
       ingredients: optional(g),
       weeks: optional(w),
       slots: optional(s),
+      ledger: optional(l).map((e) => ({ ...(e as object), amount: Number((e as { amount: number }).amount) })),
+      members: optional(m),
     } as Data;
     this.persist();
     this.state = { ...this.state, online: true, loaded: true };

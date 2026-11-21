@@ -94,10 +94,10 @@ function Signed({ session }: { session: Session }) {
     const meta = session.user.user_metadata as { name?: string };
     return <Setup defaultName={meta?.name ?? ''} onDone={load} />;
   }
-  return <Home_ membership={membership} />;
+  return <Home_ membership={membership} userId={userId} />;
 }
 
-function Home_({ membership }: { membership: Membership }) {
+function Home_({ membership, userId }: { membership: Membership; userId: string }) {
   const { household, displayName } = membership;
   const store = useMemo(() => new Store(household.id), [household.id]);
   useEffect(() => {
@@ -106,25 +106,27 @@ function Home_({ membership }: { membership: Membership }) {
   }, [store]);
   const state = useStore(store);
   const [tab, setTab] = useState<Tab>('compra');
+  const [masView, setMasView] = useState<'menu' | 'cuentas'>('menu');
   const ctx: Ctx = useMemo(
     () => ({
       householdId: household.id,
       by: displayName,
+      userId,
       now: () => new Date().toISOString(),
       newId: () => crypto.randomUUID(),
     }),
-    [household.id, displayName],
+    [household.id, displayName, userId],
   );
   const pending = state.data.items.filter((i) => !i.bought).length;
 
   return (
     <div className="app">
       {tab === 'hoy' && (
-        <Hoy store={store} state={state} ctx={ctx} name={displayName} goCompra={() => setTab('compra')} goComida={() => setTab('comida')} />
+        <Hoy store={store} state={state} ctx={ctx} name={displayName} goCompra={() => setTab('compra')} goComida={() => setTab('comida')} goCuentas={() => { setMasView('cuentas'); setTab('mas'); }} />
       )}
       {tab === 'compra' && <Compra store={store} state={state} ctx={ctx} />}
       {tab === 'comida' && <Comida store={store} state={state} ctx={ctx} goCompra={() => setTab('compra')} />}
-      {tab === 'mas' && <Mas store={store} state={state} ctx={ctx} household={household} />}
+      {tab === 'mas' && <Mas key={masView} store={store} state={state} ctx={ctx} household={household} initial={masView} />}
 
       {state.error && (
         <div className="toast" role="alert">
@@ -149,7 +151,7 @@ function Home_({ membership }: { membership: Membership }) {
           <Food />
           Comida
         </button>
-        <button aria-current={tab === 'mas' ? 'page' : undefined} onClick={() => setTab('mas')}>
+        <button aria-current={tab === 'mas' ? 'page' : undefined} onClick={() => { setMasView('menu'); setTab('mas'); }}>
           <More />
           Más
         </button>

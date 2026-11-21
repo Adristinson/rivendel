@@ -33,6 +33,8 @@ function base(): Data {
     ingredients: [],
     weeks: [],
     slots: [],
+    ledger: [],
+    members: [],
   };
 }
 

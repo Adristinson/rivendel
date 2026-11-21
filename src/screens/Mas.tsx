@@ -5,14 +5,39 @@ import type { Household, Member } from '../lib/types';
 import { capitalize, findProduct, otherCategory, type Ctx } from '../lib/logic';
 import { COLOR_NAMES, tone } from '../lib/palette';
 import { Back, Chevron, Trash } from '../icons';
+import { Cuentas } from './Cuentas';
+import { balance, fmtEuro, otherMember } from '../lib/accounts';
 
-type View = 'menu' | 'catalogo' | 'hogar';
+type View = 'menu' | 'catalogo' | 'hogar' | 'cuentas';
 
-export function Mas({ store, state, ctx, household }: { store: Store; state: StoreState; ctx: Ctx; household: Household }) {
-  const [view, setView] = useState<View>('menu');
+export function Mas({
+  store,
+  state,
+  ctx,
+  household,
+  initial = 'menu',
+}: {
+  store: Store;
+  state: StoreState;
+  ctx: Ctx;
+  household: Household;
+  initial?: View;
+}) {
+  const [view, setView] = useState<View>(initial);
 
   if (view === 'catalogo') return <Catalogo store={store} state={state} ctx={ctx} back={() => setView('menu')} />;
   if (view === 'hogar') return <Hogar household={household} back={() => setView('menu')} />;
+  if (view === 'cuentas') return <Cuentas store={store} state={state} ctx={ctx} back={() => setView('menu')} />;
+
+  const other = otherMember(state.data, ctx.userId ?? '');
+  const bal = other ? balance(state.data.ledger, ctx.userId ?? '', other.user_id) : 0;
+  const balText = !other
+    ? 'Gastos compartidos y quién debe a quién'
+    : Math.abs(bal) < 0.005
+      ? 'Estáis en paz'
+      : bal > 0
+        ? `${other.display_name} te debe ${fmtEuro(bal)}`
+        : `Debes ${fmtEuro(-bal)} a ${other.display_name}`;
 
   async function exportar() {
     const h = household.id;
@@ -39,6 +64,7 @@ export function Mas({ store, state, ctx, household }: { store: Store; state: Sto
       recipe_ingredients: state.data.ingredients,
       menu_weeks: state.data.weeks,
       menu_slots: state.data.slots,
+      ledger: state.data.ledger,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -57,6 +83,17 @@ export function Mas({ store, state, ctx, household }: { store: Store; state: Sto
         </div>
       </header>
       <div className="scroll">
+        <ul className="menu-list">
+          <li>
+            <button onClick={() => setView('cuentas')}>
+              <span style={{ flex: 1 }}>
+                Cuentas claras
+                <div className="sub">{balText}</div>
+              </span>
+              <Chevron />
+            </button>
+          </li>
+        </ul>
         <ul className="menu-list">
           <li>
             <button onClick={() => setView('catalogo')}>
@@ -90,7 +127,7 @@ export function Mas({ store, state, ctx, household }: { store: Store; state: Sto
             <div className="item">
               <span style={{ flex: 1 }}>
                 Próximamente
-                <div className="sub">Cuentas claras · Pendientes · Ideas y planes</div>
+                <div className="sub">Pendientes · Ideas y planes</div>
               </span>
             </div>
           </li>
