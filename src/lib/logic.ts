@@ -45,6 +45,13 @@ function matches(row: Record<string, unknown>, match: Record<string, string | nu
 /** Aplica un cambio a los datos locales (sin red). */
 export function applyOp(data: Data, op: Op): Data {
   switch (op.kind) {
+    case 'upsertCategory': {
+      const exists = data.categories.some((c) => c.id === op.category.id);
+      return {
+        ...data,
+        categories: exists ? data.categories.map((c) => (c.id === op.category.id ? op.category : c)) : [...data.categories, op.category],
+      };
+    }
     case 'upsertProduct': {
       const exists = data.products.some((p) => p.id === op.product.id);
       return {

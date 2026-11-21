@@ -104,6 +104,7 @@ export type Row = Recipe | Ingredient | MenuWeek | MenuSlot;
 /** Cambios que se aplican al momento en el móvil y se envían a Supabase cuando hay conexión. */
 export type Op =
   | { kind: 'upsertProduct'; product: Product }
+  | { kind: 'upsertCategory'; category: Category }
   | { kind: 'updateProduct'; id: string; patch: Partial<Product> }
   | { kind: 'deleteProduct'; id: string }
   | { kind: 'upsertItem'; item: ListItem }

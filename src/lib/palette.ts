@@ -11,6 +11,7 @@ export const TONES: Record<string, Tone> = {
   amber: { bg: '#FCEBCB', fg: '#7F4D00', dot: '#E59A1A' },
   purple: { bg: '#ECE4FA', fg: '#5A3797', dot: '#8A62D6' },
   teal: { bg: '#DDF2F1', fg: '#16625D', dot: '#26A69A' },
+  sea: { bg: '#DCEFF8', fg: '#0F5878', dot: '#2A8DBF' },
   pink: { bg: '#FBE3EF', fg: '#8E2459', dot: '#D9558F' },
   gray: { bg: '#ECEDEA', fg: '#454B47', dot: '#8C928E' },
 };
@@ -22,6 +23,7 @@ export const COLOR_NAMES: Record<string, string> = {
   amber: 'Ámbar',
   purple: 'Morado',
   teal: 'Turquesa',
+  sea: 'Azul mar',
   pink: 'Rosa',
   gray: 'Gris',
 };

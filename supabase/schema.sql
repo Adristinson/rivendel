@@ -107,9 +107,10 @@ begin
   insert into categories(household_id, name, sort, color) values (h, 'Fruta y verdura', 1, 'green') returning id into c_fv;
   insert into categories(household_id, name, sort, color) values (h, 'Lácteos', 2, 'blue') returning id into c_lac;
   insert into categories(household_id, name, sort, color) values (h, 'Carne', 3, 'red') returning id into c_car;
-  insert into categories(household_id, name, sort, color) values (h, 'Panadería', 4, 'amber') returning id into c_pan;
-  insert into categories(household_id, name, sort, color) values (h, 'Despensa', 5, 'purple') returning id into c_des;
-  insert into categories(household_id, name, sort, color) values (h, 'Limpieza y hogar', 6, 'teal');
+  insert into categories(household_id, name, sort, color) values (h, 'Pescado', 4, 'sea');
+  insert into categories(household_id, name, sort, color) values (h, 'Panadería', 5, 'amber') returning id into c_pan;
+  insert into categories(household_id, name, sort, color) values (h, 'Despensa', 6, 'purple') returning id into c_des;
+  insert into categories(household_id, name, sort, color) values (h, 'Limpieza y hogar', 7, 'teal');
   insert into categories(household_id, name, sort, color) values (h, 'Otros', 99, 'gray');
 
   insert into products(household_id, name, category_id, is_staple) values

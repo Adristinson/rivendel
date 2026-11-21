@@ -143,7 +143,13 @@ export function matchProduct(products: Product[], name: string): Product | undef
 }
 
 /** Guarda los ingredientes de una receta: reemplaza los anteriores y crea productos nuevos si hace falta. */
-export function ingredientOps(data: Data, recipeId: string, lines: string[], ctx: Ctx): Op[] {
+export function ingredientOps(
+  data: Data,
+  recipeId: string,
+  lines: string[],
+  ctx: Ctx,
+  categoryFor?: (name: string) => string | undefined,
+): Op[] {
   const ops: Op[] = [{ kind: 'deleteRows', table: 'recipe_ingredients', match: { recipe_id: recipeId } }];
   const products = [...data.products];
   let sort = 0;
@@ -156,7 +162,7 @@ export function ingredientOps(data: Data, recipeId: string, lines: string[], ctx
         id: ctx.newId(),
         household_id: ctx.householdId,
         name: parsed.name,
-        category_id: otherCategory(data)?.id ?? null,
+        category_id: categoryFor?.(parsed.name) ?? otherCategory(data)?.id ?? null,
         is_staple: false,
         times_bought: 0,
         last_bought_at: null,

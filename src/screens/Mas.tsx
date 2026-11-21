@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { Store, StoreState } from '../lib/store';
 import type { Household, Member } from '../lib/types';
 import { capitalize, findProduct, otherCategory, type Ctx } from '../lib/logic';
-import { tone } from '../lib/palette';
+import { COLOR_NAMES, tone } from '../lib/palette';
 import { Back, Chevron, Trash } from '../icons';
 
 type View = 'menu' | 'catalogo' | 'hogar';
@@ -124,6 +124,24 @@ function Catalogo({ store, state, ctx, back }: { store: Store; state: StoreState
   const [name, setName] = useState('');
   const [cat, setCat] = useState<string>('');
   const [msg, setMsg] = useState<string | null>(null);
+  const [catName, setCatName] = useState('');
+  const [catColor, setCatColor] = useState('sea');
+
+  function addCategory(e: FormEvent) {
+    e.preventDefault();
+    const n = capitalize(catName);
+    if (!n) return;
+    if (data.categories.some((c) => c.name.toLowerCase() === n.toLowerCase())) {
+      setMsg(`La categoría «${n}» ya existe.`);
+      return;
+    }
+    const maxSort = Math.max(0, ...data.categories.filter((c) => c.sort < 99).map((c) => c.sort));
+    store.dispatch([
+      { kind: 'upsertCategory', category: { id: ctx.newId(), household_id: ctx.householdId, name: n, sort: maxSort + 1, color: catColor } },
+    ]);
+    setCatName('');
+    setMsg(`Categoría «${n}» creada.`);
+  }
 
   function addProduct(e: FormEvent) {
     e.preventDefault();
@@ -193,6 +211,25 @@ function Catalogo({ store, state, ctx, back }: { store: Store; state: StoreState
             Añadir al catálogo
           </button>
           {msg && <p className="note" role="status">{msg}</p>}
+        </form>
+        <form className="form" onSubmit={addCategory}>
+          <label>
+            Nueva categoría
+            <input value={catName} onChange={(e) => setCatName(e.target.value)} placeholder="Ej.: Congelados" />
+          </label>
+          <label>
+            Color
+            <select value={catColor} onChange={(e) => setCatColor(e.target.value)}>
+              {Object.entries(COLOR_NAMES).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="secondary" disabled={!catName.trim()}>
+            Crear categoría
+          </button>
         </form>
         <p className="note">
           Los <strong>básicos de casa</strong> (como el aceite) no se añadirán solos desde el menú: solo cuando alguien los

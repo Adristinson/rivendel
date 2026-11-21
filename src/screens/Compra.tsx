@@ -16,6 +16,7 @@ import {
   type Row,
 } from '../lib/logic';
 import { Check, CloudOff, Minus, Plus, Trash } from '../icons';
+import { tone } from '../lib/palette';
 
 function fmtQty(q: number) {
   return Number.isInteger(q) ? String(q) : q.toLocaleString('es-ES');
@@ -25,6 +26,7 @@ export function Compra({ store, state, ctx }: { store: Store; state: StoreState;
   const { data } = state;
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
+  const [askCat, setAskCat] = useState<{ id: string; name: string } | null>(null);
   const now = () => new Date().toISOString();
 
   const groups = useMemo(() => groupPending(data), [data]);
@@ -36,9 +38,14 @@ export function Compra({ store, state, ctx }: { store: Store; state: StoreState;
   const pendingIds = new Set(data.items.filter((i) => !i.bought).map((i) => i.product_id));
 
   function add(name: string) {
-    store.dispatch(addByName(data, name, ctx));
+    const ops = addByName(data, name, ctx);
+    const created = ops.find((o) => o.kind === 'upsertProduct');
+    store.dispatch(ops);
+    if (created && created.kind === 'upsertProduct') setAskCat({ id: created.product.id, name: created.product.name });
     setQ('');
   }
+
+  const cats = [...data.categories].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, 'es'));
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -203,6 +210,38 @@ export function Compra({ store, state, ctx }: { store: Store; state: StoreState;
             <ul className="card">{g.rows.map((r) => renderRow(r, false))}</ul>
           </section>
         ))}
+
+        {askCat && (
+          <div className="sheet-backdrop" onClick={() => setAskCat(null)}>
+            <div className="sheet" role="dialog" aria-modal="true" aria-label="Elegir categoría" onClick={(e) => e.stopPropagation()}>
+              <div className="sheet-head">
+                <h2>¿En qué sección va «{askCat.name}»?</h2>
+              </div>
+              <div className="sheet-body">
+                <div className="row-gap" style={{ flexWrap: 'wrap' }}>
+                  {cats.map((c) => {
+                    const t = tone(c.color);
+                    return (
+                      <button
+                        key={c.id}
+                        className="chip"
+                        style={{ background: t.bg, color: t.fg }}
+                        onClick={() => {
+                          store.dispatch([{ kind: 'updateProduct', id: askCat.id, patch: { category_id: c.id } }]);
+                          setAskCat(null);
+                        }}
+                      >
+                        <span className="dot" style={{ background: t.dot }} />
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="small">Se recuerda para la próxima vez. Puedes cambiarla o crear categorías en Más → Productos.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {bought.length > 0 && (
           <section className="group">

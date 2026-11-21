@@ -723,6 +723,9 @@ function RecipeEditor({
   const [imagePath, setImagePath] = useState<string | null>(existing?.image_path ?? null);
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [newCats, setNewCats] = useState<Record<string, string>>({});
+  const cats = [...data.categories].sort((a, b) => a.sort - b.sort || a.name.localeCompare(b.name, 'es'));
+  const otherId = cats.find((c) => norm(c.name) === 'otros')?.id ?? '';
 
   const lines = ingText.split('\n').map((l) => l.trim()).filter(Boolean);
   const preview = lines.map((l) => {
@@ -762,7 +765,7 @@ function RecipeEditor({
     };
     const oldLines = existing ? ingredientsOf(data, existing.id).map((i) => i.raw).join('\n') : '';
     const ops: Op[] = [{ kind: 'upsertRow', table: 'recipes', row: recipe }];
-    if (lines.join('\n') !== oldLines) ops.push(...ingredientOps(data, recipeId, lines, ctx));
+    if (lines.join('\n') !== oldLines) ops.push(...ingredientOps(data, recipeId, lines, ctx, (n) => newCats[norm(n)]));
     if (existing?.image_path && existing.image_path !== imagePath) void removeRecipeImage(existing.image_path);
     store.dispatch(ops);
     done(recipeId);
@@ -841,6 +844,21 @@ function RecipeEditor({
                   <span className="small" style={p.product ? undefined : { color: '#8A3B00' }}>
                     {!p.parsed ? 'no se entiende' : p.product ? `→ ${p.product.name}${p.product.is_staple ? ' (básico)' : ''}` : `→ producto nuevo: ${p.parsed.name}`}
                   </span>
+                  {p.parsed && !p.product && (
+                    <select
+                      className="field"
+                      style={{ height: 40, marginTop: 4 }}
+                      aria-label={`Categoría de ${p.parsed.name}`}
+                      value={newCats[norm(p.parsed.name)] ?? otherId}
+                      onChange={(e) => setNewCats({ ...newCats, [norm(p.parsed!.name)]: e.target.value })}
+                    >
+                      {cats.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </li>
               ))}
             </ul>

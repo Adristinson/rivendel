@@ -194,6 +194,9 @@ export class Store {
   private async send(op: Op) {
     let res: { error: PgError | null };
     switch (op.kind) {
+      case 'upsertCategory':
+        res = await supabase.from('categories').upsert(op.category);
+        break;
       case 'upsertProduct':
         res = await supabase.from('products').upsert(stripProduct(op.product));
         break;
