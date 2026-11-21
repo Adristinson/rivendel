@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import { applyOps, remapProduct } from './logic';
+import { applyOps, remapProduct, TABLE_PK } from './logic';
 import type { Data, Op, Product } from './types';
 
 export interface StoreState {
@@ -12,7 +12,7 @@ export interface StoreState {
   error: string | null;
 }
 
-const EMPTY: Data = { categories: [], products: [], items: [] };
+const EMPTY: Data = { categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [] };
 
 interface PgError {
   message?: string;
@@ -55,7 +55,7 @@ export class Store {
       const raw = localStorage.getItem(this.key);
       if (raw) {
         const saved = JSON.parse(raw) as { server: Data; outbox: Op[] };
-        this.server = saved.server ?? EMPTY;
+        this.server = { ...EMPTY, ...(saved.server ?? {}) };
         this.outbox = saved.outbox ?? [];
       }
     } catch {
@@ -82,6 +82,10 @@ export class Store {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items' }, () => this.scheduleRefetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => this.scheduleRefetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipes' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recipe_ingredients' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_weeks' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_slots' }, () => this.scheduleRefetch())
       .subscribe();
     void this.flush();
   }
@@ -212,23 +216,46 @@ export class Store {
         }
         res = { error: null };
         break;
+      case 'upsertRow':
+        res = await supabase.from(op.table).upsert(op.row as never, { onConflict: TABLE_PK[op.table].join(',') });
+        break;
+      case 'deleteRows': {
+        let q = supabase.from(op.table).delete();
+        for (const [k, v] of Object.entries(op.match)) q = q.eq(k, v);
+        res = await q;
+        break;
+      }
     }
     if (res.error) throw res.error;
   }
 
   async refetch(): Promise<void> {
     const h = this.householdId;
-    const [c, p, i] = await Promise.all([
+    const [c, p, i, r, g, w, s] = await Promise.all([
       supabase.from('categories').select('*').eq('household_id', h),
       supabase.from('products').select('*').eq('household_id', h),
       supabase.from('list_items').select('*').eq('household_id', h),
+      supabase.from('recipes').select('*').eq('household_id', h),
+      supabase.from('recipe_ingredients').select('*').eq('household_id', h),
+      supabase.from('menu_weeks').select('*').eq('household_id', h),
+      supabase.from('menu_slots').select('*').eq('household_id', h),
     ]);
     const err = c.error ?? p.error ?? i.error;
+    // Si el módulo 2 aún no está en la base de datos, la lista sigue funcionando.
+    const optional = <T,>(x: { data: T[] | null; error: unknown }) => (x.error ? [] : (x.data ?? []));
     if (err) {
       if (isNetworkError(err)) this.setPartial({ online: false });
       return;
     }
-    this.server = { categories: c.data ?? [], products: p.data ?? [], items: i.data ?? [] } as Data;
+    this.server = {
+      categories: c.data ?? [],
+      products: p.data ?? [],
+      items: i.data ?? [],
+      recipes: optional(r),
+      ingredients: optional(g),
+      weeks: optional(w),
+      slots: optional(s),
+    } as Data;
     this.persist();
     this.state = { ...this.state, online: true, loaded: true };
     this.emit();

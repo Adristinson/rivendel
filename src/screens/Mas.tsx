@@ -35,6 +35,10 @@ export function Mas({ store, state, ctx, household }: { store: Store; state: Sto
         products: state.data.products,
         list_items: state.data.items,
       }),
+      recipes: state.data.recipes,
+      recipe_ingredients: state.data.ingredients,
+      menu_weeks: state.data.weeks,
+      menu_slots: state.data.slots,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');

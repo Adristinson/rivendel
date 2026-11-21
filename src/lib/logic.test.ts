@@ -29,6 +29,10 @@ function base(): Data {
       { id: 'tomate', household_id: 'h', name: 'Tomate', category_id: 'fv', is_staple: false, times_bought: 2, last_bought_at: null },
     ],
     items: [],
+    recipes: [],
+    ingredients: [],
+    weeks: [],
+    slots: [],
   };
 }
 

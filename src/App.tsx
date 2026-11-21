@@ -8,7 +8,8 @@ import { Auth } from './screens/Auth';
 import { Setup } from './screens/Setup';
 import { Compra } from './screens/Compra';
 import { Mas } from './screens/Mas';
-import { Comida, Hoy } from './screens/Hoy';
+import { Hoy } from './screens/Hoy';
+import { Comida } from './screens/Comida';
 import { Cart, Food, Home, More } from './icons';
 
 type Tab = 'hoy' | 'compra' | 'comida' | 'mas';
@@ -118,9 +119,11 @@ function Home_({ membership }: { membership: Membership }) {
 
   return (
     <div className="app">
-      {tab === 'hoy' && <Hoy state={state} name={displayName} goCompra={() => setTab('compra')} />}
+      {tab === 'hoy' && (
+        <Hoy store={store} state={state} ctx={ctx} name={displayName} goCompra={() => setTab('compra')} goComida={() => setTab('comida')} />
+      )}
       {tab === 'compra' && <Compra store={store} state={state} ctx={ctx} />}
-      {tab === 'comida' && <Comida />}
+      {tab === 'comida' && <Comida store={store} state={state} ctx={ctx} goCompra={() => setTab('compra')} />}
       {tab === 'mas' && <Mas store={store} state={state} ctx={ctx} household={household} />}
 
       {state.error && (

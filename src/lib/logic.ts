@@ -1,4 +1,4 @@
-import type { Category, Data, ListItem, Op, Product } from './types';
+import type { Category, Data, ListItem, Op, Product, Row as AnyRow, Table } from './types';
 import { tone, type Tone } from './palette';
 
 export function norm(s: string): string {
@@ -17,6 +17,29 @@ export function findProduct(data: Data, name: string): Product | undefined {
 
 export function otherCategory(data: Data): Category | undefined {
   return data.categories.find((c) => norm(c.name) === 'otros') ?? [...data.categories].sort((a, b) => b.sort - a.sort)[0];
+}
+
+const TABLE_KEY = {
+  recipes: 'recipes',
+  recipe_ingredients: 'ingredients',
+  menu_weeks: 'weeks',
+  menu_slots: 'slots',
+} as const;
+
+/** Columnas que identifican una fila en cada tabla. */
+export const TABLE_PK: Record<Table, string[]> = {
+  recipes: ['id'],
+  recipe_ingredients: ['id'],
+  menu_weeks: ['household_id', 'week_start'],
+  menu_slots: ['household_id', 'week_start', 'day', 'meal'],
+};
+
+function sameKey(table: Table, a: Record<string, unknown>, b: Record<string, unknown>) {
+  return TABLE_PK[table].every((k) => a[k] === b[k]);
+}
+
+function matches(row: Record<string, unknown>, match: Record<string, string | number>) {
+  return Object.entries(match).every(([k, v]) => row[k] === v);
 }
 
 /** Aplica un cambio a los datos locales (sin red). */
@@ -51,6 +74,29 @@ export function applyOp(data: Data, op: Op): Data {
         ...data,
         products: data.products.map((p) => (ids.has(p.id) ? { ...p, times_bought: p.times_bought + 1 } : p)),
       };
+    }
+    case 'upsertRow': {
+      const key = TABLE_KEY[op.table];
+      const rows = data[key] as unknown as Record<string, unknown>[];
+      const row = op.row as unknown as Record<string, unknown>;
+      const exists = rows.some((r) => sameKey(op.table, r, row));
+      const next = exists ? rows.map((r) => (sameKey(op.table, r, row) ? row : r)) : [...rows, row];
+      return { ...data, [key]: next as unknown as AnyRow[] };
+    }
+    case 'deleteRows': {
+      const key = TABLE_KEY[op.table];
+      const rows = data[key] as unknown as Record<string, unknown>[];
+      const gone = rows.filter((r) => matches(r, op.match));
+      let next: Data = { ...data, [key]: rows.filter((r) => !matches(r, op.match)) as unknown as AnyRow[] };
+      if (op.table === 'recipes') {
+        const ids = new Set(gone.map((r) => r.id));
+        next = {
+          ...next,
+          ingredients: next.ingredients.filter((i) => !ids.has(i.recipe_id)),
+          slots: next.slots.map((sl) => (sl.recipe_id && ids.has(sl.recipe_id) ? { ...sl, recipe_id: null } : sl)),
+        };
+      }
+      return next;
     }
   }
 }

@@ -43,11 +43,63 @@ export interface Household {
   invite_code: string;
 }
 
+export interface Recipe {
+  id: string;
+  household_id: string;
+  name: string;
+  url: string | null;
+  body: string | null;
+  image_path: string | null;
+  tags: string[];
+  favorite: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Ingredient {
+  id: string;
+  household_id: string;
+  recipe_id: string;
+  product_id: string | null;
+  qty: number | null;
+  unit: string | null;
+  raw: string;
+  sort: number;
+}
+
+export interface MenuWeek {
+  household_id: string;
+  week_start: string; // YYYY-MM-DD, lunes
+  status: 'draft' | 'approved';
+  approved_at: string | null;
+}
+
+export type Meal = 'comida' | 'cena';
+
+export interface MenuSlot {
+  household_id: string;
+  week_start: string;
+  day: number; // 0 = lunes
+  meal: Meal;
+  recipe_id: string | null;
+  text: string | null;
+  leftover: boolean;
+  updated_at: string;
+}
+
 export interface Data {
   categories: Category[];
   products: Product[];
   items: ListItem[];
+  recipes: Recipe[];
+  ingredients: Ingredient[];
+  weeks: MenuWeek[];
+  slots: MenuSlot[];
 }
+
+export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots';
+export type Row = Recipe | Ingredient | MenuWeek | MenuSlot;
 
 /** Cambios que se aplican al momento en el móvil y se envían a Supabase cuando hay conexión. */
 export type Op =
@@ -56,4 +108,6 @@ export type Op =
   | { kind: 'deleteProduct'; id: string }
   | { kind: 'upsertItem'; item: ListItem }
   | { kind: 'deleteItems'; ids: string[] }
-  | { kind: 'markBought'; productIds: string[] };
+  | { kind: 'markBought'; productIds: string[] }
+  | { kind: 'upsertRow'; table: Table; row: Row }
+  | { kind: 'deleteRows'; table: Table; match: Record<string, string | number> };
