@@ -106,7 +106,7 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
   }, [store]);
   const state = useStore(store);
   const [tab, setTab] = useState<Tab>('compra');
-  const [masView, setMasView] = useState<'menu' | 'cuentas'>('menu');
+  const [masView, setMasView] = useState<'menu' | 'cuentas' | 'pendientes'>('menu');
   const ctx: Ctx = useMemo(
     () => ({
       householdId: household.id,
@@ -122,7 +122,7 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
   return (
     <div className="app">
       {tab === 'hoy' && (
-        <Hoy store={store} state={state} ctx={ctx} name={displayName} goCompra={() => setTab('compra')} goComida={() => setTab('comida')} goCuentas={() => { setMasView('cuentas'); setTab('mas'); }} />
+        <Hoy store={store} state={state} ctx={ctx} name={displayName} goCompra={() => setTab('compra')} goComida={() => setTab('comida')} goCuentas={() => { setMasView('cuentas'); setTab('mas'); }} goPendientes={() => { setMasView('pendientes'); setTab('mas'); }} />
       )}
       {tab === 'compra' && <Compra store={store} state={state} ctx={ctx} />}
       {tab === 'comida' && <Comida store={store} state={state} ctx={ctx} goCompra={() => setTab('compra')} />}

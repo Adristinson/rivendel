@@ -103,6 +103,25 @@ export interface LedgerEntry {
   updated_at: string;
 }
 
+export type TodoList = 'casa' | 'comprar' | 'ideas';
+export type Repeat = 'semanal' | 'quincenal' | 'mensual';
+
+export interface Todo {
+  id: string;
+  household_id: string;
+  list: TodoList;
+  text: string;
+  note: string | null;
+  due: string | null; // YYYY-MM-DD
+  repeat: Repeat | null;
+  tags: string[];
+  done: boolean;
+  done_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Data {
   categories: Category[];
   products: Product[];
@@ -113,10 +132,11 @@ export interface Data {
   slots: MenuSlot[];
   ledger: LedgerEntry[];
   members: Member[];
+  todos: Todo[];
 }
 
-export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger';
-export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry;
+export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger' | 'todos';
+export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry | Todo;
 
 /** Cambios que se aplican al momento en el móvil y se envían a Supabase cuando hay conexión. */
 export type Op =

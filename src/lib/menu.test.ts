@@ -33,6 +33,7 @@ function base(): Data {
     slots: [],
     ledger: [],
     members: [],
+    todos: [],
   };
 }
 

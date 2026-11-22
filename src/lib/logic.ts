@@ -25,6 +25,7 @@ const TABLE_KEY = {
   menu_weeks: 'weeks',
   menu_slots: 'slots',
   ledger: 'ledger',
+  todos: 'todos',
 } as const;
 
 /** Columnas que identifican una fila en cada tabla. */
@@ -34,6 +35,7 @@ export const TABLE_PK: Record<Table, string[]> = {
   menu_weeks: ['household_id', 'week_start'],
   menu_slots: ['household_id', 'week_start', 'day', 'meal'],
   ledger: ['id'],
+  todos: ['id'],
 };
 
 function sameKey(table: Table, a: Record<string, unknown>, b: Record<string, unknown>) {

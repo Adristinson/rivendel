@@ -6,6 +6,9 @@ import { groupPending } from '../lib/logic';
 import { proposeTodayOps, todayMenu } from './Comida';
 import { Chevron } from '../icons';
 import { balance, fmtEuro, otherMember } from '../lib/accounts';
+import { complete, dueLabel, dueToday } from '../lib/todos';
+import { isoDate } from '../lib/menu';
+import { Check } from '../icons';
 
 function saludo() {
   const h = new Date().getHours();
@@ -22,6 +25,7 @@ export function Hoy({
   goCompra,
   goComida,
   goCuentas,
+  goPendientes,
 }: {
   store: Store;
   state: StoreState;
@@ -30,7 +34,10 @@ export function Hoy({
   goCompra: () => void;
   goComida: () => void;
   goCuentas: () => void;
+  goPendientes: () => void;
 }) {
+  const today = isoDate(new Date());
+  const tasks = dueToday(state.data.todos, today);
   const groups = groupPending(state.data);
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
   const f = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -107,6 +114,39 @@ export function Hoy({
           )}
         </section>
 
+        {tasks.length > 0 && (
+          <section className="group">
+            <h2 className="group-title" style={{ background: '#FCE4DF', color: '#9A2E1E' }}>
+              Pendiente para hoy
+            </h2>
+            <ul className="card">
+              {tasks.map((t) => {
+                const d = dueLabel(t.due, today);
+                return (
+                  <li key={t.id}>
+                    <button
+                      className="row-main"
+                      onClick={() => store.dispatch([{ kind: 'upsertRow', table: 'todos', row: complete(t, today, ctx.now()) }])}
+                      aria-label={`Marcar como hecho: ${t.text}`}
+                    >
+                      <span className="ring" style={{ borderColor: '#2E7D5B' }}>
+                        {t.done && <Check />}
+                      </span>
+                      <span className="row-text">
+                        <span className="row-name">{t.text}</span>
+                        <span className="row-meta">
+                          {t.list === 'comprar' ? 'Comprar' : 'Casa'}
+                          {d && d.tone === 'late' ? ` · ${d.text.toLowerCase()}` : ''}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
         <ul className="menu-list">
           <li>
             <button onClick={goCompra}>
@@ -136,6 +176,21 @@ export function Hoy({
               </button>
             </li>
           )}
+          <li>
+            <button onClick={goPendientes}>
+              <span style={{ flex: 1 }}>
+                Pendientes e ideas
+                <div className="sub">
+                  {(() => {
+                    const p = state.data.todos.filter((t) => !t.done && t.list !== 'ideas').length;
+                    const i = state.data.todos.filter((t) => !t.done && t.list === 'ideas').length;
+                    return `${p} pendiente${p === 1 ? '' : 's'} · ${i} idea${i === 1 ? '' : 's'} de planes`;
+                  })()}
+                </div>
+              </span>
+              <Chevron />
+            </button>
+          </li>
           <li>
             <button onClick={goComida}>
               <span style={{ flex: 1 }}>

@@ -6,9 +6,10 @@ import { capitalize, findProduct, otherCategory, type Ctx } from '../lib/logic';
 import { COLOR_NAMES, tone } from '../lib/palette';
 import { Back, Chevron, Trash } from '../icons';
 import { Cuentas } from './Cuentas';
+import { Pendientes } from './Pendientes';
 import { balance, fmtEuro, otherMember } from '../lib/accounts';
 
-type View = 'menu' | 'catalogo' | 'hogar' | 'cuentas';
+type View = 'menu' | 'catalogo' | 'hogar' | 'cuentas' | 'pendientes';
 
 export function Mas({
   store,
@@ -28,6 +29,10 @@ export function Mas({
   if (view === 'catalogo') return <Catalogo store={store} state={state} ctx={ctx} back={() => setView('menu')} />;
   if (view === 'hogar') return <Hogar household={household} back={() => setView('menu')} />;
   if (view === 'cuentas') return <Cuentas store={store} state={state} ctx={ctx} back={() => setView('menu')} />;
+  if (view === 'pendientes') return <Pendientes store={store} state={state} ctx={ctx} back={() => setView('menu')} />;
+  const nCasa = state.data.todos.filter((t) => !t.done && t.list === 'casa').length;
+  const nComprar = state.data.todos.filter((t) => !t.done && t.list === 'comprar').length;
+  const nIdeas = state.data.todos.filter((t) => !t.done && t.list === 'ideas').length;
 
   const other = otherMember(state.data, ctx.userId ?? '');
   const bal = other ? balance(state.data.ledger, ctx.userId ?? '', other.user_id) : 0;
@@ -65,6 +70,7 @@ export function Mas({
       menu_weeks: state.data.weeks,
       menu_slots: state.data.slots,
       ledger: state.data.ledger,
+      todos: state.data.todos,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -89,6 +95,17 @@ export function Mas({
               <span style={{ flex: 1 }}>
                 Cuentas claras
                 <div className="sub">{balText}</div>
+              </span>
+              <Chevron />
+            </button>
+          </li>
+          <li>
+            <button onClick={() => setView('pendientes')}>
+              <span style={{ flex: 1 }}>
+                Pendientes e ideas
+                <div className="sub">
+                  Casa {nCasa} · Comprar {nComprar} · Ideas {nIdeas}
+                </div>
               </span>
               <Chevron />
             </button>
@@ -122,16 +139,7 @@ export function Mas({
             </button>
           </li>
         </ul>
-        <ul className="menu-list">
-          <li>
-            <div className="item">
-              <span style={{ flex: 1 }}>
-                Próximamente
-                <div className="sub">Pendientes · Ideas y planes</div>
-              </span>
-            </div>
-          </li>
-        </ul>
+
         <p className="note">Has entrado como {ctx.by}.</p>
         <button className="secondary" onClick={() => supabase.auth.signOut()}>
           Cerrar sesión

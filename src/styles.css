@@ -195,3 +195,7 @@ button { cursor: pointer; }
 .ledger-icon { width: 36px; height: 36px; flex: none; border-radius: 999px; background: #FCEBCB; color: #7F4D00; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
 .amount-input { height: 56px; font-size: 26px; font-weight: 700; }
 input[type=range] { accent-color: var(--brand); }
+
+/* Pendientes */
+.tabs.three { grid-template-columns: 1fr 1fr 1fr; }
+.due { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
