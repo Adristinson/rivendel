@@ -94,6 +94,12 @@ describe('menú', () => {
     expect(week.slots.filter((s) => s.meal === 'comida').every((s) => s.recipe_id !== 'b')).toBe(true);
   });
 
+  it('no propone desayunos ni extras como comida o cena', () => {
+    const d = { ...base(), recipes: [R('g', 'Galletas', { tags: ['desayuno'] }), R('p', 'Pasta')] };
+    for (let i = 0; i < 5; i++) expect(proposeRecipe(d, { meal: 'cena', random: () => i / 5 })?.id).toBe('p');
+    expect(proposeRecipe({ ...d, recipes: [d.recipes[0]] }, { meal: 'cena' })).toBeUndefined();
+  });
+
   it('prefiere lo que no se ha comido hace tiempo', () => {
     const d = { ...base(), recipes: [R('a', 'A'), R('b', 'B')], slots: [slotRow(ctx, '2026-11-16', 4, 'cena', { recipe_id: 'a' })] };
     expect(proposeRecipe(d, { today: '2026-11-23', random: () => 0 })?.id).toBe('b');

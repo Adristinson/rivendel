@@ -318,11 +318,18 @@ export function scoreRecipe(r: Recipe, last: Map<string, string>, opts: ProposeO
   return score + (opts.random ?? Math.random)() * 2.5;
 }
 
+/** Desayunos, meriendas y acompañamientos no se proponen como comida o cena (salvo que lo digan sus etiquetas). */
+export function isNotMeal(r: Recipe): boolean {
+  return r.tags.includes('desayuno') && !r.tags.includes('comida') && !r.tags.includes('cena');
+}
+
 /** Elige una receta del recetario para un hueco. */
 export function proposeRecipe(data: Data, opts: ProposeOpts = {}): Recipe | undefined {
   const last = lastEaten(data);
   const other: Meal | undefined = opts.meal === 'comida' ? 'cena' : opts.meal === 'cena' ? 'comida' : undefined;
-  let pool = data.recipes.filter((r) => !(other && r.tags.includes(other) && !r.tags.includes(opts.meal!)));
+  let pool = data.recipes.filter(
+    (r) => !(other && r.tags.includes(other) && !r.tags.includes(opts.meal!)) && !isNotMeal(r),
+  );
   const fresh = pool.filter((r) => !opts.exclude?.has(r.id));
   if (fresh.length > 0) pool = fresh;
   if (pool.length === 0) return undefined;
@@ -481,4 +488,5 @@ export const TAGS: { id: string; label: string }[] = [
   { id: 'rapida', label: 'Rápida' },
   { id: 'batch', label: 'Batch cooking' },
   { id: 'lorenzo', label: 'Le gusta a Lorenzo' },
+  { id: 'desayuno', label: 'Desayuno o extra' },
 ];
