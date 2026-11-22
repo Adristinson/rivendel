@@ -23,7 +23,7 @@ export function Pendientes({
   store: Store;
   state: StoreState;
   ctx: Ctx;
-  back: () => void;
+  back?: () => void;
   initialList?: TodoList;
 }) {
   const [list, setList] = useState<TodoList>(initialList);
@@ -108,14 +108,17 @@ export function Pendientes({
 
   return (
     <div className="screen">
-      <header className="band" style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))' }}>
-        <div className="band-row">
-          <button className="icon-btn" onClick={back} aria-label="Volver" style={{ marginLeft: -12 }}>
-            <Back />
-          </button>
-          <span className="band-kicker">Más</span>
-        </div>
-        <h1 style={{ fontSize: 26 }}>Pendientes e ideas</h1>
+      <header className="band" style={back ? { paddingTop: 'calc(10px + env(safe-area-inset-top))' } : undefined}>
+        {back && (
+          <div className="band-row">
+            <button className="icon-btn" onClick={back} aria-label="Volver" style={{ marginLeft: -12 }}>
+              <Back />
+            </button>
+            <span className="band-kicker">Ajustes</span>
+          </div>
+        )}
+        {!back && <div className="band-kicker">Rivendel</div>}
+        <h1 style={{ fontSize: back ? 26 : 28 }}>Pendientes</h1>
         <div className="tabs three" role="tablist">
           {LISTS.map((l) => {
             const n = openOf(todos, l.id).length;

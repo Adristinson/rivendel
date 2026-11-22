@@ -7,7 +7,6 @@ import { COLOR_NAMES, tone } from '../lib/palette';
 import { Back, Chevron, Trash } from '../icons';
 import { Cuentas } from './Cuentas';
 import { Pendientes } from './Pendientes';
-import { balance, fmtEuro, otherMember } from '../lib/accounts';
 
 type View = 'menu' | 'catalogo' | 'hogar' | 'cuentas' | 'pendientes';
 
@@ -17,12 +16,14 @@ export function Mas({
   ctx,
   household,
   initial = 'menu',
+  close,
 }: {
   store: Store;
   state: StoreState;
   ctx: Ctx;
   household: Household;
   initial?: View;
+  close?: () => void;
 }) {
   const [view, setView] = useState<View>(initial);
 
@@ -30,19 +31,7 @@ export function Mas({
   if (view === 'hogar') return <Hogar household={household} back={() => setView('menu')} />;
   if (view === 'cuentas') return <Cuentas store={store} state={state} ctx={ctx} back={() => setView('menu')} />;
   if (view === 'pendientes') return <Pendientes store={store} state={state} ctx={ctx} back={() => setView('menu')} />;
-  const nCasa = state.data.todos.filter((t) => !t.done && t.list === 'casa').length;
-  const nComprar = state.data.todos.filter((t) => !t.done && t.list === 'comprar').length;
-  const nIdeas = state.data.todos.filter((t) => !t.done && t.list === 'ideas').length;
 
-  const other = otherMember(state.data, ctx.userId ?? '');
-  const bal = other ? balance(state.data.ledger, ctx.userId ?? '', other.user_id) : 0;
-  const balText = !other
-    ? 'Gastos compartidos y quién debe a quién'
-    : Math.abs(bal) < 0.005
-      ? 'Estáis en paz'
-      : bal > 0
-        ? `${other.display_name} te debe ${fmtEuro(bal)}`
-        : `Debes ${fmtEuro(-bal)} a ${other.display_name}`;
 
   async function exportar() {
     const h = household.id;
@@ -82,35 +71,18 @@ export function Mas({
 
   return (
     <div className="screen">
-      <header className="band">
-        <div>
-          <div className="band-kicker">Rivendel</div>
-          <h1>Más</h1>
-        </div>
+      <header className="band" style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))' }}>
+        {close && (
+          <div className="band-row">
+            <button className="icon-btn" onClick={close} aria-label="Volver" style={{ marginLeft: -12 }}>
+              <Back />
+            </button>
+            <span className="band-kicker">Hoy</span>
+          </div>
+        )}
+        <h1>Ajustes</h1>
       </header>
       <div className="scroll">
-        <ul className="menu-list">
-          <li>
-            <button onClick={() => setView('cuentas')}>
-              <span style={{ flex: 1 }}>
-                Cuentas claras
-                <div className="sub">{balText}</div>
-              </span>
-              <Chevron />
-            </button>
-          </li>
-          <li>
-            <button onClick={() => setView('pendientes')}>
-              <span style={{ flex: 1 }}>
-                Pendientes e ideas
-                <div className="sub">
-                  Casa {nCasa} · Comprar {nComprar} · Ideas {nIdeas}
-                </div>
-              </span>
-              <Chevron />
-            </button>
-          </li>
-        </ul>
         <ul className="menu-list">
           <li>
             <button onClick={() => setView('catalogo')}>
@@ -156,7 +128,7 @@ function SubHeader({ title, back }: { title: string; back: () => void }) {
         <button className="icon-btn" onClick={back} aria-label="Volver" style={{ marginLeft: -12 }}>
           <Back />
         </button>
-        <span className="band-kicker">Más</span>
+        <span className="band-kicker">Ajustes</span>
       </div>
       <h1>{title}</h1>
     </header>

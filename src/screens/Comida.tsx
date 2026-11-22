@@ -35,11 +35,31 @@ import {
 import { imageUrl, removeRecipeImage, uploadRecipeImage } from '../lib/images';
 import { Back, Check, Chevron, Plus, Trash } from '../icons';
 
+export type ComidaSub = 'menu' | 'recetas' | 'compra';
+
 interface Props {
   store: Store;
   state: StoreState;
   ctx: Ctx;
-  goCompra: () => void;
+  sub: ComidaSub;
+  setSub: (s: ComidaSub) => void;
+}
+
+export function ComidaTabs({ sub, setSub, data }: { sub: ComidaSub; setSub: (s: ComidaSub) => void; data: Data }) {
+  const pending = data.items.filter((i) => !i.bought).length;
+  return (
+    <div className="tabs three" role="tablist">
+      <button role="tab" aria-pressed={sub === 'menu'} aria-selected={sub === 'menu'} onClick={() => setSub('menu')}>
+        Menú
+      </button>
+      <button role="tab" aria-pressed={sub === 'recetas'} aria-selected={sub === 'recetas'} onClick={() => setSub('recetas')}>
+        Recetas
+      </button>
+      <button role="tab" aria-pressed={sub === 'compra'} aria-selected={sub === 'compra'} onClick={() => setSub('compra')}>
+        Compra{pending > 0 ? ` · ${pending}` : ''}
+      </button>
+    </div>
+  );
 }
 
 type View =
@@ -48,8 +68,13 @@ type View =
   | { kind: 'receta'; id: string }
   | { kind: 'editar'; id: string | null };
 
-export function Comida({ store, state, ctx, goCompra }: Props) {
-  const [view, setView] = useState<View>({ kind: 'menu' });
+export function Comida({ store, state, ctx, sub, setSub }: Props) {
+  const [view, setViewRaw] = useState<View>({ kind: sub === 'recetas' ? 'recetas' : 'menu' });
+  const setView = (v: View) => {
+    setViewRaw(v);
+    if (v.kind === 'menu' || v.kind === 'recetas') setSub(v.kind);
+  };
+  const goCompra = () => setSub('compra');
   const [week, setWeek] = useState(() => {
     const now = new Date();
     // En fin de semana se planifica la semana siguiente
@@ -88,14 +113,7 @@ export function Comida({ store, state, ctx, goCompra }: Props) {
             <h1>Comida</h1>
           </div>
         </div>
-        <div className="tabs" role="tablist">
-          <button role="tab" aria-pressed={view.kind === 'menu'} aria-selected={view.kind === 'menu'} onClick={() => setView({ kind: 'menu' })}>
-            Menú
-          </button>
-          <button role="tab" aria-pressed={view.kind === 'recetas'} aria-selected={view.kind === 'recetas'} onClick={() => setView({ kind: 'recetas' })}>
-            Recetas · {state.data.recipes.length}
-          </button>
-        </div>
+        <ComidaTabs sub={view.kind === 'recetas' ? 'recetas' : 'menu'} setSub={(x) => (x === 'compra' ? setSub('compra') : setView({ kind: x }))} data={state.data} />
       </header>
       {view.kind === 'menu' ? (
         <MenuView store={store} data={state.data} ctx={ctx} week={week} setWeek={setWeek} goCompra={goCompra} goRecetas={() => setView({ kind: 'recetas' })} />

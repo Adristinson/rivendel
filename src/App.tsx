@@ -9,10 +9,13 @@ import { Setup } from './screens/Setup';
 import { Compra } from './screens/Compra';
 import { Mas } from './screens/Mas';
 import { Hoy } from './screens/Hoy';
-import { Comida } from './screens/Comida';
-import { Cart, Food, Home, More } from './icons';
+import { dueToday } from './lib/todos';
+import { Comida, ComidaTabs, type ComidaSub } from './screens/Comida';
+import { Cuentas } from './screens/Cuentas';
+import { Pendientes } from './screens/Pendientes';
+import { Euro, Food, Home, Tasks } from './icons';
 
-type Tab = 'hoy' | 'compra' | 'comida' | 'mas';
+type Tab = 'hoy' | 'comida' | 'finanzas' | 'pendientes';
 interface Membership {
   household: Household;
   displayName: string;
@@ -105,8 +108,30 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
     return () => store.stop();
   }, [store]);
   const state = useStore(store);
-  const [tab, setTab] = useState<Tab>('compra');
-  const [masView, setMasView] = useState<'menu' | 'cuentas' | 'pendientes'>('menu');
+  const [tab, setTabRaw] = useState<Tab>(() => (localStorage.getItem('rivendel:tab') as Tab) || 'hoy');
+  const [sub, setSubRaw] = useState<ComidaSub>(() => (localStorage.getItem('rivendel:comida') as ComidaSub) || 'compra');
+  const [settings, setSettings] = useState(false);
+  const setTab = (t: Tab) => {
+    setTabRaw(t);
+    setSettings(false);
+    try {
+      localStorage.setItem('rivendel:tab', t);
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
+  const setSub = (x: ComidaSub) => {
+    setSubRaw(x);
+    try {
+      localStorage.setItem('rivendel:comida', x);
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
+  const goComida = (x: ComidaSub) => {
+    setSub(x);
+    setTab('comida');
+  };
   const ctx: Ctx = useMemo(
     () => ({
       householdId: household.id,
@@ -118,15 +143,38 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
     [household.id, displayName, userId],
   );
   const pending = state.data.items.filter((i) => !i.bought).length;
+  const dueCount = dueToday(state.data.todos).length;
+  const openTodos = state.data.todos.filter((t) => !t.done && t.list !== 'ideas').length;
 
   return (
     <div className="app">
-      {tab === 'hoy' && (
-        <Hoy store={store} state={state} ctx={ctx} name={displayName} goCompra={() => setTab('compra')} goComida={() => setTab('comida')} goCuentas={() => { setMasView('cuentas'); setTab('mas'); }} goPendientes={() => { setMasView('pendientes'); setTab('mas'); }} />
+      {settings ? (
+        <Mas store={store} state={state} ctx={ctx} household={household} close={() => setSettings(false)} />
+      ) : (
+        <>
+          {tab === 'hoy' && (
+            <Hoy
+              store={store}
+              state={state}
+              ctx={ctx}
+              name={displayName}
+              goCompra={() => goComida('compra')}
+              goComida={() => goComida('menu')}
+              goCuentas={() => setTab('finanzas')}
+              goPendientes={() => setTab('pendientes')}
+              openSettings={() => setSettings(true)}
+            />
+          )}
+          {tab === 'comida' &&
+            (sub === 'compra' ? (
+              <Compra store={store} state={state} ctx={ctx} tabs={<ComidaTabs sub="compra" setSub={setSub} data={state.data} />} />
+            ) : (
+              <Comida key={sub} store={store} state={state} ctx={ctx} sub={sub} setSub={setSub} />
+            ))}
+          {tab === 'finanzas' && <Cuentas store={store} state={state} ctx={ctx} />}
+          {tab === 'pendientes' && <Pendientes store={store} state={state} ctx={ctx} />}
+        </>
       )}
-      {tab === 'compra' && <Compra store={store} state={state} ctx={ctx} />}
-      {tab === 'comida' && <Comida store={store} state={state} ctx={ctx} goCompra={() => setTab('compra')} />}
-      {tab === 'mas' && <Mas key={masView} store={store} state={state} ctx={ctx} household={household} initial={masView} />}
 
       {state.error && (
         <div className="toast" role="alert">
@@ -136,24 +184,30 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
       )}
 
       <nav className="nav" aria-label="Secciones">
-        <button aria-current={tab === 'hoy' ? 'page' : undefined} onClick={() => setTab('hoy')}>
-          <Home />
+        <button aria-current={tab === 'hoy' && !settings ? 'page' : undefined} onClick={() => setTab('hoy')}>
+          <span className="ico">
+            <Home />
+            {dueCount > 0 && <span className="badge">{dueCount}</span>}
+          </span>
           Hoy
         </button>
-        <button aria-current={tab === 'compra' ? 'page' : undefined} onClick={() => setTab('compra')}>
+        <button aria-current={tab === 'comida' && !settings ? 'page' : undefined} onClick={() => setTab('comida')}>
           <span className="ico">
-            <Cart />
+            <Food />
             {pending > 0 && <span className="badge">{pending}</span>}
           </span>
-          Compra
-        </button>
-        <button aria-current={tab === 'comida' ? 'page' : undefined} onClick={() => setTab('comida')}>
-          <Food />
           Comida
         </button>
-        <button aria-current={tab === 'mas' ? 'page' : undefined} onClick={() => { setMasView('menu'); setTab('mas'); }}>
-          <More />
-          Más
+        <button aria-current={tab === 'finanzas' && !settings ? 'page' : undefined} onClick={() => setTab('finanzas')}>
+          <Euro />
+          Finanzas
+        </button>
+        <button aria-current={tab === 'pendientes' && !settings ? 'page' : undefined} onClick={() => setTab('pendientes')}>
+          <span className="ico">
+            <Tasks />
+            {openTodos > 0 && <span className="badge">{openTodos}</span>}
+          </span>
+          Pendientes
         </button>
       </nav>
     </div>

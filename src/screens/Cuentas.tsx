@@ -8,7 +8,7 @@ import { Back } from '../icons';
 
 type Editing = { mode: 'gasto' | 'pago'; entry?: LedgerEntry } | null;
 
-export function Cuentas({ store, state, ctx, back }: { store: Store; state: StoreState; ctx: Ctx; back: () => void }) {
+export function Cuentas({ store, state, ctx, back }: { store: Store; state: StoreState; ctx: Ctx; back?: () => void }) {
   const { data } = state;
   const me = ctx.userId ?? '';
   const other = otherMember(data, me);
@@ -26,15 +26,17 @@ export function Cuentas({ store, state, ctx, back }: { store: Store; state: Stor
 
   return (
     <div className="screen">
-      <header className="band" style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))' }}>
-        <div className="band-row">
-          <button className="icon-btn" onClick={back} aria-label="Volver" style={{ marginLeft: -12 }}>
-            <Back />
-          </button>
-          <span className="band-kicker">Más</span>
-        </div>
+      <header className="band" style={back ? { paddingTop: 'calc(10px + env(safe-area-inset-top))' } : undefined}>
+        {back && (
+          <div className="band-row">
+            <button className="icon-btn" onClick={back} aria-label="Volver" style={{ marginLeft: -12 }}>
+              <Back />
+            </button>
+            <span className="band-kicker">Ajustes</span>
+          </div>
+        )}
         <div>
-          <div className="band-kicker">Cuentas claras</div>
+          <div className="band-kicker">Finanzas · cuentas claras</div>
           <h1 style={{ fontSize: 26 }}>{headline}</h1>
         </div>
         {other && (

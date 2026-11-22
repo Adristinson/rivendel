@@ -8,7 +8,7 @@ import { Chevron } from '../icons';
 import { balance, fmtEuro, otherMember } from '../lib/accounts';
 import { complete, dueLabel, dueToday } from '../lib/todos';
 import { isoDate } from '../lib/menu';
-import { Check } from '../icons';
+import { Check, Gear } from '../icons';
 
 function saludo() {
   const h = new Date().getHours();
@@ -26,6 +26,7 @@ export function Hoy({
   goComida,
   goCuentas,
   goPendientes,
+  openSettings,
 }: {
   store: Store;
   state: StoreState;
@@ -35,6 +36,7 @@ export function Hoy({
   goComida: () => void;
   goCuentas: () => void;
   goPendientes: () => void;
+  openSettings: () => void;
 }) {
   const today = isoDate(new Date());
   const tasks = dueToday(state.data.todos, today);
@@ -61,11 +63,16 @@ export function Hoy({
   return (
     <div className="screen">
       <header className="band">
-        <div>
-          <div className="band-kicker">{fecha}</div>
-          <h1>
-            {saludo()}, {name}
-          </h1>
+        <div className="band-top" style={{ alignItems: 'flex-start' }}>
+          <div>
+            <div className="band-kicker">{fecha}</div>
+            <h1>
+              {saludo()}, {name}
+            </h1>
+          </div>
+          <button className="icon-btn" aria-label="Ajustes" onClick={openSettings} style={{ marginRight: -10, color: '#fff' }}>
+            <Gear />
+          </button>
         </div>
       </header>
       <div className="scroll">
@@ -163,7 +170,7 @@ export function Hoy({
             <li>
               <button onClick={goCuentas}>
                 <span style={{ flex: 1 }}>
-                  Cuentas claras
+                    Finanzas
                   <div className="sub">
                     {Math.abs(bal) < 0.005
                       ? 'Estáis en paz'
@@ -179,7 +186,7 @@ export function Hoy({
           <li>
             <button onClick={goPendientes}>
               <span style={{ flex: 1 }}>
-                Pendientes e ideas
+                Pendientes
                 <div className="sub">
                   {(() => {
                     const p = state.data.todos.filter((t) => !t.done && t.list !== 'ideas').length;

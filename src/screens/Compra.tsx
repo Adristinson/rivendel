@@ -22,7 +22,7 @@ function fmtQty(q: number) {
   return Number.isInteger(q) ? String(q) : q.toLocaleString('es-ES');
 }
 
-export function Compra({ store, state, ctx }: { store: Store; state: StoreState; ctx: Ctx }) {
+export function Compra({ store, state, ctx, tabs }: { store: Store; state: StoreState; ctx: Ctx; tabs?: React.ReactNode }) {
   const { data } = state;
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -130,11 +130,12 @@ export function Compra({ store, state, ctx }: { store: Store; state: StoreState;
       <header className="band">
         <div className="band-top">
           <div>
-            <div className="band-kicker">Rivendel</div>
-            <h1>Compra</h1>
+            <div className="band-kicker">{tabs ? 'Comida' : 'Rivendel'}</div>
+            <h1>{tabs ? 'Compra' : 'Compra'}</h1>
           </div>
           <span className="pill">{pendingCount} por comprar</span>
         </div>
+        {tabs}
         <form className="add" onSubmit={submit} role="search">
           <input
             aria-label="Añadir producto"
