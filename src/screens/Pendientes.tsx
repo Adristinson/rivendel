@@ -197,7 +197,11 @@ export function Pendientes({
             return (
               <button key={l.id} role="tab" aria-selected={tab === l.id} aria-pressed={tab === l.id} onClick={() => setTab(l.id)}>
                 {l.label}
-                {n > 0 ? ` ${n}` : ''}
+                {n > 0 && (
+                  <span className="tab-count" aria-label={`${n} pendientes`}>
+                    {n}
+                  </span>
+                )}
               </button>
             );
           })}

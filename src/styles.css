@@ -201,3 +201,6 @@ input[type=range] { accent-color: var(--brand); }
 .tabs.four { grid-template-columns: .8fr 1fr .8fr 1.15fr; }
 .tabs.four button { font-size: 13.5px; padding: 0 2px; }
 .due { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+
+/* Contador pequeño en las pestañas */
+.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 4px; margin-left: 5px; border-radius: 999px; background: var(--sun); color: var(--sun-ink); font-size: 10.5px; font-weight: 800; line-height: 1; vertical-align: 2px; }
