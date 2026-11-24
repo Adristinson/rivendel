@@ -198,4 +198,6 @@ input[type=range] { accent-color: var(--brand); }
 
 /* Pendientes */
 .tabs.three { grid-template-columns: 1fr 1fr 1fr; }
+.tabs.four { grid-template-columns: .8fr 1fr .8fr 1.15fr; }
+.tabs.four button { font-size: 13.5px; padding: 0 2px; }
 .due { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }

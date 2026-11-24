@@ -85,3 +85,42 @@ export function frequentConcepts(entries: LedgerEntry[], max = 8): string[] {
   const rest = DEFAULT_CONCEPTS.filter((d) => !count.has(norm(d)));
   return [...used, ...rest].slice(0, max);
 }
+
+export interface Settlement {
+  id: string; // id del pago que dejó las cuentas a cero
+  date: string;
+  payment: LedgerEntry;
+  entries: LedgerEntry[]; // gastos y pagos del periodo (sin el pago final), más recientes primero
+  spent: number; // total de gastos compartidos del periodo
+  from: string; // fecha del primer movimiento del periodo
+}
+
+/**
+ * Parte el historial en "saldos": cada vez que un pago deja las cuentas a cero se cierra un periodo.
+ * Devuelve los periodos cerrados (más reciente primero) y los movimientos abiertos desde el último saldo.
+ */
+export function settlements(entries: LedgerEntry[], a: string, b: string): { closed: Settlement[]; open: LedgerEntry[] } {
+  const chrono = [...entries].sort((x, y) => x.date.localeCompare(y.date) || x.created_at.localeCompare(y.created_at));
+  const closed: Settlement[] = [];
+  let current: LedgerEntry[] = [];
+  let bal = 0;
+  for (const e of chrono) {
+    bal = Math.round((bal + balance([e], a, b)) * 100) / 100;
+    if (e.kind === 'pago' && Math.abs(bal) < 0.005 && current.length > 0) {
+      const gastos = current.filter((x) => x.kind === 'gasto');
+      closed.push({
+        id: e.id,
+        date: e.date,
+        payment: e,
+        entries: [...current].reverse(),
+        spent: Math.round(gastos.reduce((s, x) => s + x.amount, 0) * 100) / 100,
+        from: current[0].date,
+      });
+      current = [];
+      bal = 0;
+    } else {
+      current.push(e);
+    }
+  }
+  return { closed: closed.reverse(), open: current };
+}

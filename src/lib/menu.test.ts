@@ -34,6 +34,7 @@ function base(): Data {
     ledger: [],
     members: [],
     todos: [],
+    freezer: [],
   };
 }
 

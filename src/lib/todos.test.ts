@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { complete, dueLabel, dueToday, nextDue, sortOpen } from './todos';
-import type { Todo } from './types';
+import { complete, dueLabel, dueToday, frozenLabel, lastDone, nextDue, setLastDone, sortFreezer, sortOpen } from './todos';
+import type { FreezerItem, Todo } from './types';
 
 const T = (p: Partial<Todo>): Todo => ({
   id: Math.random().toString(), household_id: 'h', list: 'casa', text: 'x', note: null, due: null, repeat: null, tags: [],
@@ -26,6 +26,44 @@ describe('repetición', () => {
     const t = complete(T({}), '2026-11-22', 'now');
     expect(t.done).toBe(true);
     expect(complete(t, '2026-11-22', 'later').done).toBe(false);
+  });
+});
+
+describe('filtro del agua (cada 3 meses)', () => {
+  it('trimestral, semestral y anual', () => {
+    expect(nextDue('2026-11-30', 'trimestral')).toBe('2027-02-28');
+    expect(nextDue('2026-11-24', 'semestral')).toBe('2027-05-24');
+    expect(nextDue('2026-11-24', 'anual')).toBe('2027-11-24');
+  });
+  it('cuenta desde el día en que se cambia y guarda el historial', () => {
+    let t = T({ text: 'Cambiar el filtro del agua', repeat: 'trimestral', due: '2026-12-01' });
+    t = complete(t, '2026-11-24', 'now');
+    expect(t.due).toBe('2027-02-24');
+    t = complete(t, '2027-03-10', 'now'); // se hizo tarde
+    expect(t.due).toBe('2027-06-10');
+    expect(t.done_log).toEqual(['2026-11-24', '2027-03-10']);
+    expect(lastDone(t)).toBe('2027-03-10');
+  });
+  it('corregir la última vez recalcula la próxima', () => {
+    const t = setLastDone(T({ repeat: 'trimestral' }), '2026-10-05', 'now');
+    expect(t.done_log).toEqual(['2026-10-05']);
+    expect(t.due).toBe('2027-01-05');
+    expect(setLastDone(t, '2026-10-20', 'now').done_log).toEqual(['2026-10-20']);
+  });
+});
+
+describe('congelador', () => {
+  const F = (p: Partial<FreezerItem>): FreezerItem => ({ id: 'x', household_id: 'h', name: 'Lentejas', portions: 2, frozen_on: '2026-11-01', note: null, created_by: null, created_at: '', updated_at: '', ...p });
+  it('antigüedad y aviso a los 3 meses', () => {
+    expect(frozenLabel(F({}), '2026-11-01').text).toBe('Congelado hoy');
+    expect(frozenLabel(F({}), '2026-11-08').text).toBe('Hace 7 días');
+    expect(frozenLabel(F({}), '2026-11-29').text).toBe('Hace 4 semanas');
+    expect(frozenLabel(F({}), '2027-01-29').old).toBe(false);
+    expect(frozenLabel(F({}), '2027-02-01')).toEqual({ text: 'Hace 3 meses', old: true });
+  });
+  it('lo más antiguo primero y sin lo que se ha acabado', () => {
+    const l = sortFreezer([F({ id: 'a', frozen_on: '2026-11-10' }), F({ id: 'b', frozen_on: '2026-09-01' }), F({ id: 'c', portions: 0 })]);
+    expect(l.map((i) => i.id)).toEqual(['b', 'a']);
   });
 });
 

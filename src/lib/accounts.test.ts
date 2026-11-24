@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { balance, byMonth, frequentConcepts, parseAmount } from './accounts';
+import { balance, byMonth, frequentConcepts, parseAmount, settlements } from './accounts';
 import type { LedgerEntry } from './types';
 
 const A = 'adri', B = 'almu';
@@ -44,5 +44,25 @@ describe('historial', () => {
     const c = frequentConcepts([E({ concept: 'Gasolina' }), E({ concept: 'gasolina' }), E({ concept: 'Súper' })]);
     expect(c.slice(0, 2)).toEqual(['Gasolina', 'Súper']);
     expect(c).toContain('Guardería');
+  });
+});
+
+describe('histórico de saldos', () => {
+  it('cada pago que deja las cuentas a cero cierra un periodo', () => {
+    const list = [
+      E({ id: 'g1', amount: 60, date: '2026-10-02' }),
+      E({ id: 'g2', amount: 20, paid_by: B, other_user: A, date: '2026-10-15' }),
+      E({ id: 'p1', kind: 'pago', amount: 20, paid_by: B, other_user: A, date: '2026-10-31' }),
+      E({ id: 'g3', amount: 40, date: '2026-11-05' }),
+      E({ id: 'p2', kind: 'pago', amount: 5, paid_by: B, other_user: A, date: '2026-11-06' }), // pago parcial: no cierra
+    ];
+    const { closed, open } = settlements(list, A, B);
+    expect(closed).toHaveLength(1);
+    expect(closed[0]).toMatchObject({ id: 'p1', date: '2026-10-31', spent: 80, from: '2026-10-02' });
+    expect(closed[0].entries.map((e) => e.id)).toEqual(['g2', 'g1']);
+    expect(open.map((e) => e.id)).toEqual(['g3', 'p2']);
+  });
+  it('sin pagos no hay histórico', () => {
+    expect(settlements([E({})], A, B)).toMatchObject({ closed: [], open: [{}] });
   });
 });

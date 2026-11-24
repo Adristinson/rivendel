@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Store, StoreState } from '../lib/store';
 import type { Ctx } from '../lib/logic';
-import type { Repeat, Todo, TodoList } from '../lib/types';
+import type { FreezerItem, Repeat, Todo, TodoList } from '../lib/types';
 import { isoDate } from '../lib/menu';
-import { complete, doneOf, dueLabel, IDEA_TAGS, LISTS, openOf, REPEATS } from '../lib/todos';
-import { Back, Check, Plus } from '../icons';
+import { complete, doneOf, dueLabel, fmtDay, frozenLabel, IDEA_TAGS, lastDone, LISTS, nextDue, openOf, REPEATS, setLastDone, sortFreezer } from '../lib/todos';
+import { Back, Check, Minus, Plus } from '../icons';
+
+type Tab = TodoList | 'congelador';
 
 const TONE: Record<string, { bg: string; fg: string }> = {
   late: { bg: '#FCE4DF', fg: '#9A2E1E' },
@@ -24,9 +26,14 @@ export function Pendientes({
   state: StoreState;
   ctx: Ctx;
   back?: () => void;
-  initialList?: TodoList;
+  initialList?: Tab;
 }) {
-  const [list, setList] = useState<TodoList>(initialList);
+  const [tab, setTab] = useState<Tab>(initialList);
+  const list: TodoList = tab === 'congelador' ? 'casa' : tab;
+  const [frozenEditing, setFrozenEditing] = useState<FreezerItem | null>(null);
+  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  const freezer = sortFreezer(state.data.freezer ?? []);
+  const portionsTotal = freezer.reduce((n, i) => n + i.portions, 0);
   const [text, setText] = useState('');
   const [editing, setEditing] = useState<Todo | null>(null);
   const [showDone, setShowDone] = useState(false);
@@ -41,6 +48,30 @@ export function Pendientes({
     const t = text.trim();
     if (!t) return;
     const now = ctx.now();
+    if (tab === 'congelador') {
+      // "3 lentejas" → 3 raciones de Lentejas
+      const m = t.match(/^(\d{1,2})\s*(?:x\s*)?(?:raci[oó]n(?:es)?\s+de\s+)?(.+)$/i);
+      const name = (m ? m[2] : t).trim();
+      store.dispatch([
+        {
+          kind: 'upsertRow',
+          table: 'freezer',
+          row: {
+            id: ctx.newId(),
+            household_id: ctx.householdId,
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            portions: m ? Math.max(1, Number(m[1])) : 1,
+            frozen_on: today,
+            note: null,
+            created_by: ctx.by,
+            created_at: now,
+            updated_at: now,
+          },
+        },
+      ]);
+      setText('');
+      return;
+    }
     store.dispatch([
       {
         kind: 'upsertRow',
@@ -56,6 +87,7 @@ export function Pendientes({
           tags: [],
           done: false,
           done_at: null,
+          done_log: [],
           created_by: ctx.by,
           created_at: now,
           updated_at: now,
@@ -72,8 +104,10 @@ export function Pendientes({
   function row(t: Todo) {
     const due = dueLabel(t.due, today);
     const tone = due ? TONE[due.tone] : null;
+    const last = lastDone(t);
     const extras = [
       t.repeat ? REPEATS.find((r) => r.id === t.repeat)?.label : null,
+      t.repeat && last ? `última vez ${fmtDay(last)}` : t.repeat && !t.due ? 'indica cuándo se hizo la última vez' : null,
       ...t.tags.map((g) => IDEA_TAGS.find((x) => x.id === g)?.label ?? g),
       t.note,
     ].filter(Boolean);
@@ -106,6 +140,44 @@ export function Pendientes({
     );
   }
 
+  function takeOne(it: FreezerItem) {
+    const now = ctx.now();
+    if (it.portions <= 1) {
+      store.dispatch([{ kind: 'deleteRows', table: 'freezer', match: { id: it.id } }]);
+      setToast({ text: `${it.name}: se ha acabado`, undo: () => store.dispatch([{ kind: 'upsertRow', table: 'freezer', row: { ...it, updated_at: ctx.now() } }]) });
+    } else {
+      store.dispatch([{ kind: 'upsertRow', table: 'freezer', row: { ...it, portions: it.portions - 1, updated_at: now } }]);
+    }
+  }
+
+  function freezerRow(it: FreezerItem) {
+    const age = frozenLabel(it, today);
+    return (
+      <li key={it.id}>
+        <div className="row">
+          <button className="row-main" onClick={() => setFrozenEditing(it)} aria-label={`Editar ${it.name}`}>
+            <span className="ledger-icon" style={{ background: '#E1ECFB', color: '#1D4E8F' }}>
+              ❄
+            </span>
+            <span className="row-text">
+              <span className="row-name">{it.name}</span>
+              <span className="row-meta">
+                {it.portions === 1 ? '1 ración' : `${it.portions} raciones`} · {fmtDay(it.frozen_on, it.frozen_on.slice(0, 4) !== today.slice(0, 4))}
+                {it.note ? ` · ${it.note}` : ''}
+              </span>
+            </span>
+          </button>
+          <span className="due" style={age.old ? { background: '#FCE4DF', color: '#9A2E1E' } : { background: '#ECEDEA', color: '#454B47' }}>
+            {age.text}
+          </span>
+          <button className="qty" aria-label={`Sacar una ración de ${it.name}`} onClick={() => takeOne(it)}>
+            <Minus />
+          </button>
+        </div>
+      </li>
+    );
+  }
+
   return (
     <div className="screen">
       <header className="band" style={back ? { paddingTop: 'calc(10px + env(safe-area-inset-top))' } : undefined}>
@@ -119,21 +191,26 @@ export function Pendientes({
         )}
         {!back && <div className="band-kicker">Rivendel</div>}
         <h1 style={{ fontSize: back ? 26 : 28 }}>Pendientes</h1>
-        <div className="tabs three" role="tablist">
+        <div className="tabs four" role="tablist">
           {LISTS.map((l) => {
             const n = openOf(todos, l.id).length;
             return (
-              <button key={l.id} role="tab" aria-selected={list === l.id} aria-pressed={list === l.id} onClick={() => setList(l.id)}>
+              <button key={l.id} role="tab" aria-selected={tab === l.id} aria-pressed={tab === l.id} onClick={() => setTab(l.id)}>
                 {l.label}
-                {n > 0 ? ` · ${n}` : ''}
+                {n > 0 ? ` ${n}` : ''}
               </button>
             );
           })}
+          <button role="tab" aria-selected={tab === 'congelador'} aria-pressed={tab === 'congelador'} onClick={() => setTab('congelador')}>
+            Congelador
+          </button>
         </div>
         <form className="add" onSubmit={add}>
           <input
-            aria-label={`Añadir a ${meta.label}`}
-            placeholder={list === 'ideas' ? 'Nueva idea de plan…' : list === 'comprar' ? 'Algo que comprar…' : 'Algo por hacer…'}
+            aria-label={tab === 'congelador' ? 'Añadir al congelador' : `Añadir a ${meta.label}`}
+            placeholder={
+              tab === 'congelador' ? 'Qué congeláis (ej. 3 lentejas)…' : list === 'ideas' ? 'Nueva idea de plan…' : list === 'comprar' ? 'Algo que comprar…' : 'Algo por hacer…'
+            }
             value={text}
             onChange={(e) => setText(e.target.value)}
             enterKeyHint="done"
@@ -144,6 +221,26 @@ export function Pendientes({
         </form>
       </header>
 
+      {tab === 'congelador' ? (
+        <div className="scroll">
+          {freezer.length === 0 ? (
+            <div className="empty">
+              <strong>El congelador está vacío</strong>
+              Apunta lo que congeláis y cuántas raciones. Lo más antiguo sale arriba, y a partir de 3 meses se marca en rojo para gastarlo antes.
+            </div>
+          ) : (
+            <>
+              <div className="section-head">
+                <span className="small">
+                  {freezer.length === 1 ? '1 cosa' : `${freezer.length} cosas`} · {portionsTotal === 1 ? '1 ración' : `${portionsTotal} raciones`} · lo más antiguo primero
+                </span>
+              </div>
+              <ul className="card">{freezer.map(freezerRow)}</ul>
+              <p className="small">Toca − cuando saquéis una ración. Al sacar la última desaparece de la lista.</p>
+            </>
+          )}
+        </div>
+      ) : (
       <div className="scroll">
         {open.length === 0 ? (
           <div className="empty">
@@ -175,6 +272,42 @@ export function Pendientes({
           <p className="small">Los planes hechos se guardan para repetir los que gustaron: tócalos para devolverlos a la lista.</p>
         )}
       </div>
+      )}
+
+      {frozenEditing && (
+        <FreezerSheet
+          key={frozenEditing.id}
+          item={frozenEditing}
+          close={() => setFrozenEditing(null)}
+          save={(it) => {
+            store.dispatch([{ kind: 'upsertRow', table: 'freezer', row: { ...it, updated_at: ctx.now() } }]);
+            setFrozenEditing(null);
+          }}
+          remove={() => {
+            const it = frozenEditing;
+            store.dispatch([{ kind: 'deleteRows', table: 'freezer', match: { id: it.id } }]);
+            setFrozenEditing(null);
+            setToast({ text: `${it.name}: quitado del congelador`, undo: () => store.dispatch([{ kind: 'upsertRow', table: 'freezer', row: { ...it, updated_at: ctx.now() } }]) });
+          }}
+        />
+      )}
+      {toast && (
+        <div className="toast" role="status">
+          {toast.text}
+          {toast.undo ? (
+            <button
+              onClick={() => {
+                toast.undo?.();
+                setToast(null);
+              }}
+            >
+              Deshacer
+            </button>
+          ) : (
+            <button onClick={() => setToast(null)}>Vale</button>
+          )}
+        </div>
+      )}
 
       {editing && (
         <TodoSheet
@@ -248,13 +381,37 @@ function TodoSheet({ todo, close, save, remove }: { todo: Todo; close: () => voi
                     <button
                       key={r.id}
                       aria-pressed={t.repeat === r.id}
-                      onClick={() => setT({ ...t, repeat: r.id as Repeat, due: t.due ?? isoDate(new Date()) })}
+                      onClick={() => {
+                        const last = lastDone(t);
+                        setT({ ...t, repeat: r.id as Repeat, due: last ? nextDue(last, r.id as Repeat) : (t.due ?? isoDate(new Date())) });
+                      }}
                     >
                       {r.label.replace('Cada ', '')}
                     </button>
                   ))}
                 </div>
-                {t.repeat && <p className="small">Al marcarla como hecha, vuelve a aparecer en la próxima fecha.</p>}
+                {t.repeat && (
+                  <>
+                    <label>
+                      Última vez que se hizo
+                      <input
+                        type="date"
+                        value={lastDone(t) ?? ''}
+                        max={isoDate(new Date())}
+                        onChange={(e) => e.target.value && setT(setLastDone(t, e.target.value, new Date().toISOString()))}
+                      />
+                    </label>
+                    <p className="small">
+                      Al marcarla como hecha se apunta el día y vuelve a aparecer en la próxima fecha
+                      {t.due ? ` (ahora: ${fmtDay(t.due, true)})` : ''}. Ese día sale en Hoy.
+                    </p>
+                    {(t.done_log ?? []).length > 1 && (
+                      <p className="small">
+                        Historial: {[...(t.done_log ?? [])].reverse().map((d) => fmtDay(d, true)).join(' · ')}
+                      </p>
+                    )}
+                  </>
+                )}
               </>
             )}
             {isIdea && (
@@ -283,6 +440,59 @@ function TodoSheet({ todo, close, save, remove }: { todo: Todo; close: () => voi
             </button>
             <button className="link-btn" style={{ color: '#B3261E' }} onClick={remove}>
               Borrar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FreezerSheet({ item, close, save, remove }: { item: FreezerItem; close: () => void; save: (it: FreezerItem) => void; remove: () => void }) {
+  const [it, setIt] = useState<FreezerItem>(item);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [close]);
+  return (
+    <div className="sheet-backdrop" onClick={close}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Congelador" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-head">
+          <h2>Congelador</h2>
+          <button className="icon-btn" aria-label="Cerrar" onClick={close}>
+            ✕
+          </button>
+        </div>
+        <div className="sheet-body">
+          <div className="form">
+            <label>
+              Qué es
+              <input value={it.name} onChange={(e) => setIt({ ...it, name: e.target.value })} />
+            </label>
+            <div className="label">Raciones</div>
+            <div className="stepper">
+              <button aria-label="Una ración menos" disabled={it.portions <= 1} onClick={() => setIt({ ...it, portions: it.portions - 1 })}>
+                <Minus />
+              </button>
+              <output>{it.portions}</output>
+              <button aria-label="Una ración más" onClick={() => setIt({ ...it, portions: it.portions + 1 })}>
+                <Plus />
+              </button>
+            </div>
+            <label>
+              Congelado el
+              <input type="date" value={it.frozen_on} max={isoDate(new Date())} onChange={(e) => e.target.value && setIt({ ...it, frozen_on: e.target.value })} />
+            </label>
+            <label>
+              Nota
+              <input value={it.note ?? ''} placeholder="Opcional: táper azul, cajón de abajo…" onChange={(e) => setIt({ ...it, note: e.target.value || null })} />
+            </label>
+            <button className="primary" disabled={!it.name.trim()} onClick={() => save({ ...it, name: it.name.trim() })}>
+              Guardar
+            </button>
+            <button className="link-btn" style={{ color: '#B3261E' }} onClick={remove}>
+              Se ha acabado (quitar)
             </button>
           </div>
         </div>

@@ -3,7 +3,8 @@ import type { Store, StoreState } from '../lib/store';
 import type { LedgerEntry } from '../lib/types';
 import type { Ctx } from '../lib/logic';
 import { isoDate } from '../lib/menu';
-import { balance, byMonth, fmtEuro, frequentConcepts, nameOf, otherMember, owedBy, parseAmount } from '../lib/accounts';
+import { balance, byMonth, fmtEuro, frequentConcepts, nameOf, otherMember, owedBy, parseAmount, settlements } from '../lib/accounts';
+import { fmtDay } from '../lib/todos';
 import { Back } from '../icons';
 
 type Editing = { mode: 'gasto' | 'pago'; entry?: LedgerEntry } | null;
@@ -15,8 +16,39 @@ export function Cuentas({ store, state, ctx, back }: { store: Store; state: Stor
   const [editing, setEditing] = useState<Editing>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  const [openSettlement, setOpenSettlement] = useState<string | null>(null);
+
   const bal = other ? balance(data.ledger, me, other.user_id) : 0;
-  const months = byMonth(data.ledger);
+  const { closed, open } = other ? settlements(data.ledger, me, other.user_id) : { closed: [], open: data.ledger };
+  const months = byMonth(open);
+
+  function entryRow(e: LedgerEntry) {
+    const payer = e.paid_by === me ? 'Tú' : nameOf(data, e.paid_by);
+    const d = new Date(e.date + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    const detail =
+      e.kind === 'pago'
+        ? `${payer} pagó a ${e.other_user === me ? 'ti' : nameOf(data, e.other_user)}`
+        : `${e.paid_by === me ? 'Pagaste tú' : `Pagó ${payer}`}${e.payer_share === 50 ? ' · a medias' : ` · ${100 - e.payer_share}% de ${e.other_user === me ? 'ti' : nameOf(data, e.other_user)}`}`;
+    return (
+      <li key={e.id}>
+        <button className="row-main" onClick={() => setEditing({ mode: e.kind, entry: e })}>
+          <span className="ledger-icon" style={e.kind === 'pago' ? { background: '#E3EFE7', color: '#1F5C41' } : undefined}>
+            {e.kind === 'pago' ? '⇄' : '€'}
+          </span>
+          <span className="row-text">
+            <span className="row-name">{e.kind === 'pago' ? 'Pago' : e.concept || 'Gasto'}</span>
+            <span className="row-meta">
+              {d} · {detail}
+            </span>
+          </span>
+          <span style={{ textAlign: 'right' }}>
+            <span style={{ fontWeight: 700, display: 'block' }}>{fmtEuro(e.amount)}</span>
+            {e.kind === 'gasto' && e.payer_share !== 100 && <span className="small">debe {fmtEuro(owedBy(e))}</span>}
+          </span>
+        </button>
+      </li>
+    );
+  }
 
   let headline: string;
   if (!other) headline = 'Falta la otra persona del hogar';
@@ -55,6 +87,12 @@ export function Cuentas({ store, state, ctx, back }: { store: Store; state: Stor
         {!other && (
           <div className="hint-card">Cuando la otra persona se una al hogar (Más → Hogar) podréis apuntar gastos compartidos.</div>
         )}
+        {other && open.length === 0 && closed.length > 0 && (
+          <div className="empty">
+            <strong>Todo saldado</strong>
+            Desde el {fmtDay(closed[0].date, true)} no hay gastos nuevos. Lo anterior está en el histórico.
+          </div>
+        )}
         {other && data.ledger.length === 0 && (
           <div className="empty">
             <strong>Sin movimientos todavía</strong>
@@ -69,39 +107,51 @@ export function Cuentas({ store, state, ctx, back }: { store: Store; state: Stor
               </h2>
               <span className="small">Gastos compartidos: {fmtEuro(m.spent)}</span>
             </div>
+            <ul className="card">{m.entries.map(entryRow)}</ul>
+          </section>
+        ))}
+        {closed.length > 0 && (
+          <section className="group">
+            <div className="section-head">
+              <h2 className="group-title" style={{ background: '#E3EFE7', color: '#1F5C41' }}>
+                Histórico de saldos
+              </h2>
+              <span className="small">{closed.length === 1 ? '1 saldo' : `${closed.length} saldos`}</span>
+            </div>
             <ul className="card">
-              {m.entries.map((e) => {
-                const payer = e.paid_by === me ? 'Tú' : nameOf(data, e.paid_by);
-                const d = new Date(e.date + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-                const detail =
-                  e.kind === 'pago'
-                    ? `${payer} pagó a ${e.other_user === me ? 'ti' : nameOf(data, e.other_user)}`
-                    : `${e.paid_by === me ? 'Pagaste tú' : `Pagó ${payer}`}${e.payer_share === 50 ? ' · a medias' : ` · ${100 - e.payer_share}% de ${e.other_user === me ? 'ti' : nameOf(data, e.other_user)}`}`;
+              {closed.map((st) => {
+                const isOpen = openSettlement === st.id;
+                const p = st.payment;
+                const who = `${p.paid_by === me ? 'Pagaste' : `${nameOf(data, p.paid_by)} pagó`} ${fmtEuro(p.amount)} a ${p.other_user === me ? 'ti' : nameOf(data, p.other_user)}`;
+                const n = st.entries.filter((e) => e.kind === 'gasto').length;
                 return (
-                  <li key={e.id}>
-                    <button className="row-main" onClick={() => setEditing({ mode: e.kind, entry: e })}>
-                      <span className="ledger-icon" style={e.kind === 'pago' ? { background: '#E3EFE7', color: '#1F5C41' } : undefined}>
-                        {e.kind === 'pago' ? '⇄' : '€'}
+                  <li key={st.id}>
+                    <button className="row-main" aria-expanded={isOpen} onClick={() => setOpenSettlement(isOpen ? null : st.id)}>
+                      <span className="ledger-icon" style={{ background: '#E3EFE7', color: '#1F5C41' }}>
+                        ✓
                       </span>
                       <span className="row-text">
-                        <span className="row-name">{e.kind === 'pago' ? 'Pago para saldar' : e.concept || 'Gasto'}</span>
+                        <span className="row-name">Saldado el {fmtDay(st.date, true)}</span>
                         <span className="row-meta">
-                          {d} · {detail}
+                          {who} · {n === 1 ? '1 gasto' : `${n} gastos`} del {fmtDay(st.from)} al {fmtDay(st.date)}
                         </span>
                       </span>
                       <span style={{ textAlign: 'right' }}>
-                        <span style={{ fontWeight: 700, display: 'block' }}>{fmtEuro(e.amount)}</span>
-                        {e.kind === 'gasto' && e.payer_share !== 100 && (
-                          <span className="small">debe {fmtEuro(owedBy(e))}</span>
-                        )}
+                        <span style={{ fontWeight: 700, display: 'block' }}>{fmtEuro(st.spent)}</span>
+                        <span className="small">{isOpen ? 'Ocultar' : 'Ver'}</span>
                       </span>
                     </button>
+                    {isOpen && (
+                      <ul className="card" style={{ margin: '0 10px 12px', boxShadow: 'none', border: '1px solid #ECEDEA' }}>
+                        {[p, ...st.entries].map(entryRow)}
+                      </ul>
+                    )}
                   </li>
                 );
               })}
             </ul>
           </section>
-        ))}
+        )}
         <p className="small">Solo lo veis vosotros dos. No se conecta con ningún banco.</p>
       </div>
 

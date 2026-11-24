@@ -104,7 +104,7 @@ export interface LedgerEntry {
 }
 
 export type TodoList = 'casa' | 'comprar' | 'ideas';
-export type Repeat = 'semanal' | 'quincenal' | 'mensual';
+export type Repeat = 'semanal' | 'quincenal' | 'mensual' | 'trimestral' | 'semestral' | 'anual';
 
 export interface Todo {
   id: string;
@@ -117,6 +117,19 @@ export interface Todo {
   tags: string[];
   done: boolean;
   done_at: string | null;
+  done_log?: string[]; // fechas (YYYY-MM-DD) en que se hizo, para tareas que se repiten
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FreezerItem {
+  id: string;
+  household_id: string;
+  name: string;
+  portions: number;
+  frozen_on: string; // YYYY-MM-DD
+  note: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -133,10 +146,11 @@ export interface Data {
   ledger: LedgerEntry[];
   members: Member[];
   todos: Todo[];
+  freezer: FreezerItem[];
 }
 
-export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger' | 'todos';
-export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry | Todo;
+export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger' | 'todos' | 'freezer';
+export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry | Todo | FreezerItem;
 
 /** Cambios que se aplican al momento en el móvil y se envían a Supabase cuando hay conexión. */
 export type Op =
