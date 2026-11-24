@@ -224,6 +224,11 @@ export class Store {
         break;
       case 'upsertRow':
         res = await supabase.from(op.table).upsert(op.row as never, { onConflict: TABLE_PK[op.table].join(',') });
+        // Si la base de datos aún no tiene el historial de tareas (migración 006), guardamos sin él.
+        if (res.error && op.table === 'todos' && /done_log/.test(res.error.message ?? '')) {
+          const { done_log: _omit, ...rest } = op.row as unknown as Record<string, unknown>;
+          res = await supabase.from('todos').upsert(rest as never, { onConflict: 'id' });
+        }
         break;
       case 'deleteRows': {
         let q = supabase.from(op.table).delete();
