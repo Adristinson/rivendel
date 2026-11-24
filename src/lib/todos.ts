@@ -95,8 +95,9 @@ export function doneOf(todos: Todo[], list: TodoList): Todo[] {
 }
 
 /** Para Hoy: lo de Casa y Comprar que vence hoy o está atrasado. */
+/** Lo que sale en Hoy: lo que toca hoy o está atrasado, y se queda ahí hasta marcarlo como hecho. */
 export function dueToday(todos: Todo[], today = isoDate(new Date())): Todo[] {
-  return sortOpen(todos.filter((t) => !t.done && t.list !== 'ideas' && t.due && t.due <= today));
+  return sortOpen(todos.filter((t) => !t.done && t.list !== 'ideas' && ((t.due && t.due <= today) || (t.repeat && !t.due))));
 }
 
 export function lastDone(t: Todo): string | null {

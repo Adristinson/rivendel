@@ -28,6 +28,6 @@ do $$ begin alter publication supabase_realtime add table freezer; exception whe
 
 -- Tarea del filtro del agua (cada 3 meses), si no existe ya
 insert into todos (id, household_id, list, text, note, due, repeat, created_by)
-select gen_random_uuid(), h.id, 'casa', 'Cambiar el filtro del agua', null, null, 'trimestral', 'Adri'
+select gen_random_uuid(), h.id, 'casa', 'Cambiar el filtro del agua', null, current_date, 'trimestral', 'Adri'
 from households h
 where not exists (select 1 from todos t where t.household_id = h.id and t.text ilike '%filtro%agua%');

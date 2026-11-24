@@ -52,6 +52,19 @@ describe('filtro del agua (cada 3 meses)', () => {
   });
 });
 
+describe('aviso en Hoy', () => {
+  it('el filtro se queda en Hoy desde el día que toca hasta marcarlo', () => {
+    const f = T({ id: 'f', text: 'Cambiar el filtro del agua', repeat: 'trimestral', due: '2027-02-24' });
+    expect(dueToday([f], '2027-02-23')).toHaveLength(0);
+    expect(dueToday([f], '2027-02-24')).toHaveLength(1);
+    expect(dueToday([f], '2027-03-15')).toHaveLength(1);
+    expect(dueToday([complete(f, '2027-03-15', 'now')], '2027-03-15')).toHaveLength(0);
+  });
+  it('una tarea que se repite sin fecha aún sale en Hoy', () => {
+    expect(dueToday([T({ repeat: 'trimestral', due: null })], '2026-11-24')).toHaveLength(1);
+  });
+});
+
 describe('congelador', () => {
   const F = (p: Partial<FreezerItem>): FreezerItem => ({ id: 'x', household_id: 'h', name: 'Lentejas', portions: 2, frozen_on: '2026-11-01', note: null, created_by: null, created_at: '', updated_at: '', ...p });
   it('antigüedad y aviso a los 3 meses', () => {
