@@ -193,7 +193,7 @@ export function Pendientes({
         <h1 style={{ fontSize: back ? 26 : 28 }}>Pendientes</h1>
         <div className="tabs four" role="tablist">
           {LISTS.map((l) => {
-            const n = openOf(todos, l.id).length;
+            const n = l.id === 'ideas' ? 0 : openOf(todos, l.id).length; // las ideas se guardan, no son pendientes
             return (
               <button key={l.id} role="tab" aria-selected={tab === l.id} aria-pressed={tab === l.id} onClick={() => setTab(l.id)}>
                 {l.label}
