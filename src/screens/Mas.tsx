@@ -85,6 +85,7 @@ export function Mas({
       pack_template: state.data.packTemplate,
       trips: state.data.trips,
       trip_items: state.data.tripItems,
+      places: state.data.places,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');

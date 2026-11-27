@@ -12,7 +12,7 @@ export interface StoreState {
   error: string | null;
 }
 
-const EMPTY: Data = { categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [], ledger: [], members: [], todos: [], freezer: [], packTemplate: [], trips: [], tripItems: [] };
+const EMPTY: Data = { categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [], ledger: [], members: [], todos: [], freezer: [], packTemplate: [], trips: [], tripItems: [], places: [] };
 
 interface PgError {
   message?: string;
@@ -92,6 +92,7 @@ export class Store {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pack_template' }, () => this.scheduleRefetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => this.scheduleRefetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_items' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'places' }, () => this.scheduleRefetch())
       .subscribe();
     void this.flush();
   }
@@ -245,7 +246,7 @@ export class Store {
 
   async refetch(): Promise<void> {
     const h = this.householdId;
-    const [c, p, i, r, g, w, s, l, m, t, f, pt, tr, ti] = await Promise.all([
+    const [c, p, i, r, g, w, s, l, m, t, f, pt, tr, ti, pl] = await Promise.all([
       supabase.from('categories').select('*').eq('household_id', h),
       supabase.from('products').select('*').eq('household_id', h),
       supabase.from('list_items').select('*').eq('household_id', h),
@@ -260,6 +261,7 @@ export class Store {
       supabase.from('pack_template').select('*').eq('household_id', h),
       supabase.from('trips').select('*').eq('household_id', h),
       supabase.from('trip_items').select('*').eq('household_id', h),
+      supabase.from('places').select('*').eq('household_id', h),
     ]);
     const err = c.error ?? p.error ?? i.error;
     // Si el módulo 2 aún no está en la base de datos, la lista sigue funcionando.
@@ -283,6 +285,7 @@ export class Store {
       packTemplate: optional(pt),
       trips: optional(tr),
       tripItems: optional(ti),
+      places: optional(pl),
     } as Data;
     this.persist();
     this.state = { ...this.state, online: true, loaded: true };

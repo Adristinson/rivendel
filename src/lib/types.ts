@@ -177,6 +177,22 @@ export interface TripItem {
   updated_at: string;
 }
 
+export interface Place {
+  id: string;
+  household_id: string;
+  name: string; // "Cádiz"
+  detail: string | null; // "Andalucía, España"
+  country: string | null;
+  lat: number;
+  lng: number;
+  visited_on: string | null; // YYYY-MM-01 (mes de la visita)
+  note: string | null;
+  trip_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Data {
   categories: Category[];
   products: Product[];
@@ -192,10 +208,11 @@ export interface Data {
   packTemplate: PackTemplateItem[];
   trips: Trip[];
   tripItems: TripItem[];
+  places: Place[];
 }
 
-export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger' | 'todos' | 'freezer' | 'pack_template' | 'trips' | 'trip_items';
-export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry | Todo | FreezerItem | PackTemplateItem | Trip | TripItem;
+export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger' | 'todos' | 'freezer' | 'pack_template' | 'trips' | 'trip_items' | 'places';
+export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry | Todo | FreezerItem | PackTemplateItem | Trip | TripItem | Place;
 
 /** Cambios que se aplican al momento en el móvil y se envían a Supabase cuando hay conexión. */
 export type Op =

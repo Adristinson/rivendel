@@ -40,6 +40,7 @@ function base(): Data {
     packTemplate: [],
     trips: [],
     tripItems: [],
+    places: [],
   };
 }
 

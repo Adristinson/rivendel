@@ -6,7 +6,7 @@ import type { Ctx } from './logic';
 let n = 0;
 const ctx: Ctx = { householdId: 'h', by: 'Adri', now: () => '2026-11-27T10:00:00Z', newId: () => 'id' + ++n };
 const P = (name: string, who: PackTemplateItem['who'], types: PackTemplateItem['types'] = [], sort = 0): PackTemplateItem => ({ id: 't-' + name + who, household_id: 'h', name, who, types, sort, created_at: '' });
-const data = (p: Partial<Data> = {}): Data => ({ categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [], ledger: [], members: [], todos: [], freezer: [], packTemplate: [], trips: [], tripItems: [], ...p });
+const data = (p: Partial<Data> = {}): Data => ({ categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [], ledger: [], members: [], todos: [], freezer: [], packTemplate: [], trips: [], tripItems: [], places: [], ...p });
 const template = [P('DNI', 'comun', [], 1), P('Bañador', 'adri', ['playa'], 2), P('Guantes', 'lorenzo', ['nieve'], 3), P('Bajar la basura', 'salida', [], 4)];
 
 describe('maletas', () => {

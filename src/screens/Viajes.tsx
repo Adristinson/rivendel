@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { lazy, Suspense, useState, type FormEvent } from 'react';
 import type { Store, StoreState } from '../lib/store';
 import type { Ctx } from '../lib/logic';
 import type { PackTemplateItem, PackWho, Trip, TripItem, TripType } from '../lib/types';
@@ -7,7 +7,24 @@ import { isoDate } from '../lib/menu';
 import { Back, Check, Chevron, Plus, Trash } from '../icons';
 import { Sheet } from './Comida';
 
-type View = { kind: 'list' } | { kind: 'trip'; id: string } | { kind: 'template' };
+const Mapa = lazy(() => import('./Mapa').then((m) => ({ default: m.Mapa })));
+
+type Sub = 'viajes' | 'mapa' | 'plantilla';
+
+function ViajesTabs({ sub, setSub }: { sub: Sub; setSub: (s: Sub) => void }) {
+  const t = (id: Sub, label: string) => (
+    <button role="tab" aria-pressed={sub === id} aria-selected={sub === id} onClick={() => setSub(id)}>
+      {label}
+    </button>
+  );
+  return (
+    <div className="tabs three" role="tablist">
+      {t('viajes', 'Viajes')}
+      {t('mapa', 'Mapa')}
+      {t('plantilla', 'Maleta')}
+    </div>
+  );
+}
 
 const WHO_TONE: Record<PackWho, { bg: string; fg: string }> = {
   comun: { bg: 'var(--brand-soft)', fg: 'var(--brand-ink)' },
@@ -18,13 +35,43 @@ const WHO_TONE: Record<PackWho, { bg: string; fg: string }> = {
 };
 
 export function Viajes({ store, state, ctx }: { store: Store; state: StoreState; ctx: Ctx }) {
-  const [view, setView] = useState<View>({ kind: 'list' });
-  if (view.kind === 'trip') {
-    const trip = state.data.trips.find((t) => t.id === view.id);
-    if (trip) return <TripScreen store={store} state={state} ctx={ctx} trip={trip} back={() => setView({ kind: 'list' })} />;
-  }
-  if (view.kind === 'template') return <TemplateScreen store={store} state={state} ctx={ctx} back={() => setView({ kind: 'list' })} />;
-  return <TripList store={store} state={state} ctx={ctx} open={(id) => setView({ kind: 'trip', id })} openTemplate={() => setView({ kind: 'template' })} />;
+  const [sub, setSubRaw] = useState<Sub>(() => (localStorage.getItem('rivendel:viajes') as Sub) || 'viajes');
+  const setSub = (x: Sub) => {
+    setSubRaw(x);
+    setTripId(null);
+    try {
+      localStorage.setItem('rivendel:viajes', x);
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
+  const [tripId, setTripId] = useState<string | null>(null);
+  const [toMap, setToMap] = useState<Trip | null>(null);
+  const tabs = <ViajesTabs sub={sub} setSub={setSub} />;
+
+  const trip = tripId ? state.data.trips.find((t) => t.id === tripId) : undefined;
+  if (trip)
+    return (
+      <TripScreen
+        store={store}
+        state={state}
+        ctx={ctx}
+        trip={trip}
+        back={() => setTripId(null)}
+        addToMap={() => {
+          setToMap(trip);
+          setSub('mapa');
+        }}
+      />
+    );
+  if (sub === 'mapa')
+    return (
+      <Suspense fallback={<div className="screen" />}>
+        <Mapa store={store} state={state} ctx={ctx} tabs={tabs} fromTrip={toMap} clearFromTrip={() => setToMap(null)} />
+      </Suspense>
+    );
+  if (sub === 'plantilla') return <TemplateScreen store={store} state={state} ctx={ctx} tabs={tabs} />;
+  return <TripList store={store} state={state} ctx={ctx} open={setTripId} tabs={tabs} />;
 }
 
 function typesLabel(types: TripType[]) {
@@ -42,7 +89,7 @@ function Progress({ done, total }: { done: number; total: number }) {
 
 /* ───────────────────────── Lista de viajes ───────────────────────── */
 
-function TripList({ store, state, ctx, open, openTemplate }: { store: Store; state: StoreState; ctx: Ctx; open: (id: string) => void; openTemplate: () => void }) {
+function TripList({ store, state, ctx, open, tabs }: { store: Store; state: StoreState; ctx: Ctx; open: (id: string) => void; tabs: React.ReactNode }) {
   const { data } = state;
   const today = isoDate(new Date());
   const { next, past } = splitTrips(data.trips, today);
@@ -76,12 +123,10 @@ function TripList({ store, state, ctx, open, openTemplate }: { store: Store; sta
           <div className="band-kicker">Rivendel</div>
           <h1>Viajes</h1>
         </div>
+        {tabs}
         <div className="menu-actions">
           <button className="add-big" onClick={() => setCreating(true)}>
             + Nuevo viaje
-          </button>
-          <button className="add-big ghost" onClick={openTemplate}>
-            Plantilla
           </button>
         </div>
       </header>
@@ -195,7 +240,21 @@ function NewTripSheet({
 
 /* ───────────────────────── Un viaje: la maleta ───────────────────────── */
 
-function TripScreen({ store, state, ctx, trip, back }: { store: Store; state: StoreState; ctx: Ctx; trip: Trip; back: () => void }) {
+function TripScreen({
+  store,
+  state,
+  ctx,
+  trip,
+  back,
+  addToMap,
+}: {
+  store: Store;
+  state: StoreState;
+  ctx: Ctx;
+  trip: Trip;
+  back: () => void;
+  addToMap: () => void;
+}) {
   const { data } = state;
   const today = isoDate(new Date());
   const items = data.tripItems.filter((i) => i.trip_id === trip.id);
@@ -268,6 +327,15 @@ function TripScreen({ store, state, ctx, trip, back }: { store: Store; state: St
         </form>
       </header>
       <div className="scroll">
+        {(trip.end_date ?? trip.start_date ?? '9999') < today && !(data.places ?? []).some((pl) => pl.trip_id === trip.id) && (
+          <div className="hint-card">
+            <strong>¿Qué tal el viaje?</strong>
+            <span className="small">Pásalo al mapa de sitios visitados con su fecha.</span>
+            <button className="secondary" style={{ marginTop: 6 }} onClick={addToMap}>
+              Añadir {trip.name} al mapa
+            </button>
+          </div>
+        )}
         {text.trim() && (
           <div className="hint-card" style={{ gap: 10 }}>
             {filter === 'todo' && (
@@ -295,7 +363,7 @@ function TripScreen({ store, state, ctx, trip, back }: { store: Store; state: St
         {items.length === 0 && (
           <div className="empty">
             <strong>Maleta vacía</strong>
-            Añade lo que haga falta arriba. Si la plantilla está vacía, empieza por ahí (Viajes → Plantilla).
+            Añade lo que haga falta arriba. Si la plantilla está vacía, empieza por ahí (Viajes → Maleta).
           </div>
         )}
 
@@ -364,7 +432,7 @@ function TripScreen({ store, state, ctx, trip, back }: { store: Store; state: St
 
 /* ───────────────────────── Plantilla de maleta ───────────────────────── */
 
-function TemplateScreen({ store, state, ctx, back }: { store: Store; state: StoreState; ctx: Ctx; back: () => void }) {
+function TemplateScreen({ store, state, ctx, tabs }: { store: Store; state: StoreState; ctx: Ctx; tabs: React.ReactNode }) {
   const { data } = state;
   const [who, setWho] = useState<PackWho>('comun');
   const [text, setText] = useState('');
@@ -395,14 +463,12 @@ function TemplateScreen({ store, state, ctx, back }: { store: Store; state: Stor
 
   return (
     <div className="screen">
-      <header className="band" style={{ paddingTop: 'calc(10px + env(safe-area-inset-top))' }}>
-        <div className="band-row">
-          <button className="icon-btn" onClick={back} aria-label="Volver" style={{ marginLeft: -12 }}>
-            <Back />
-          </button>
-          <span className="band-kicker">Viajes</span>
+      <header className="band">
+        <div>
+          <div className="band-kicker">Viajes</div>
+          <h1>Plantilla de maleta</h1>
         </div>
-        <h1>Plantilla de maleta</h1>
+        {tabs}
         <div className="chips">
           {WHO.map((w) => (
             <button

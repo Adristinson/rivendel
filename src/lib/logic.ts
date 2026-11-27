@@ -30,6 +30,7 @@ const TABLE_KEY = {
   pack_template: 'packTemplate',
   trips: 'trips',
   trip_items: 'tripItems',
+  places: 'places',
 } as const;
 
 /** Columnas que identifican una fila en cada tabla. */
@@ -44,6 +45,7 @@ export const TABLE_PK: Record<Table, string[]> = {
   pack_template: ['id'],
   trips: ['id'],
   trip_items: ['id'],
+  places: ['id'],
 };
 
 function sameKey(table: Table, a: Record<string, unknown>, b: Record<string, unknown>) {
