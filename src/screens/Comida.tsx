@@ -171,7 +171,7 @@ function MenuView({
           <div className="small">
             {week === thisWeek ? 'Esta semana' : week === addWeeks(thisWeek, 1) ? 'Semana que viene' : week < thisWeek ? 'Semana pasada' : 'Más adelante'}
             {' · '}
-            {approved ? <span style={{ color: '#2E7D5B', fontWeight: 700 }}>Aprobado</span> : 'Borrador'}
+            {approved ? <span style={{ color: 'var(--brand)', fontWeight: 700 }}>Aprobado</span> : 'Borrador'}
           </div>
         </div>
         <button className="icon-btn" aria-label="Semana siguiente" onClick={() => setWeek(addWeeks(week, 1))}>
@@ -206,7 +206,7 @@ function MenuView({
         const isToday = date.toDateString() === new Date().toDateString();
         return (
           <section key={day} className="day">
-            <h2 className="day-title" style={isToday ? { color: '#2E7D5B' } : undefined}>
+            <h2 className="day-title" style={isToday ? { color: 'var(--brand)' } : undefined}>
               {DAYS[day]} {date.getDate()}
               {isToday && <span className="today">hoy</span>}
             </h2>
@@ -554,7 +554,7 @@ function RecipeList({ data, open, create }: { data: Data; open: (id: string) => 
             key={f.id}
             className="chip"
             aria-pressed={filter === f.id}
-            style={filter === f.id ? { background: '#2E7D5B', color: '#fff' } : { background: '#fff', color: '#1E2320', border: '1px solid #D9DAD4' }}
+            style={filter === f.id ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--card)', color: 'var(--ink)', border: '1px solid var(--line)' }}
             onClick={() => setFilter(filter === f.id ? null : f.id)}
           >
             {f.label}
@@ -925,7 +925,7 @@ function RecipeEditor({
                   key={t.id}
                   className="chip"
                   aria-pressed={on}
-                  style={on ? { background: '#2E7D5B', color: '#fff' } : { background: '#fff', color: '#1E2320', border: '1px solid #D9DAD4' }}
+                  style={on ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--card)', color: 'var(--ink)', border: '1px solid var(--line)' }}
                   onClick={() => setTags(on ? tags.filter((x) => x !== t.id) : [...tags, t.id])}
                 >
                   {t.label}
@@ -935,7 +935,7 @@ function RecipeEditor({
             <button
               className="chip"
               aria-pressed={favorite}
-              style={favorite ? { background: '#FCEBCB', color: '#7F4D00' } : { background: '#fff', color: '#1E2320', border: '1px solid #D9DAD4' }}
+              style={favorite ? { background: '#FCEBCB', color: '#7F4D00' } : { background: 'var(--card)', color: 'var(--ink)', border: '1px solid var(--line)' }}
               onClick={() => setFavorite(!favorite)}
             >
               {favorite ? '★ Favorita' : '☆ Favorita'}

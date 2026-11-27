@@ -119,7 +119,7 @@ export function Pendientes({
             onClick={() => toggle(t)}
             aria-label={`${t.done ? 'Desmarcar' : t.repeat ? 'Hecho (vuelve a aparecer)' : 'Marcar como hecho'}: ${t.text}`}
           >
-            <span className="ring" style={t.done ? { background: '#2E7D5B', borderColor: '#2E7D5B' } : { borderColor: '#2E7D5B' }}>
+            <span className="ring" style={t.done ? { background: 'var(--brand)', borderColor: 'var(--brand)' } : { borderColor: 'var(--brand)' }}>
               {t.done && <Check />}
             </span>
             <span className="row-text">
@@ -451,7 +451,7 @@ function TodoSheet({ todo, close, save, remove }: { todo: Todo; close: () => voi
                         key={g.id}
                         className="chip"
                         aria-pressed={on}
-                        style={on ? { background: '#2E7D5B', color: '#fff' } : { background: '#fff', color: '#1E2320', border: '1px solid #D9DAD4' }}
+                        style={on ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--card)', color: 'var(--ink)', border: '1px solid var(--line)' }}
                         onClick={() => setT({ ...t, tags: on ? t.tags.filter((x) => x !== g.id) : [...t.tags, g.id] })}
                       >
                         {g.label}

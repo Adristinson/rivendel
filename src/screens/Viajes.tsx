@@ -10,7 +10,7 @@ import { Sheet } from './Comida';
 type View = { kind: 'list' } | { kind: 'trip'; id: string } | { kind: 'template' };
 
 const WHO_TONE: Record<PackWho, { bg: string; fg: string }> = {
-  comun: { bg: '#E3EFE7', fg: '#1F5C41' },
+  comun: { bg: 'var(--brand-soft)', fg: 'var(--brand-ink)' },
   adri: { bg: '#E1ECFB', fg: '#1D4E8F' },
   almu: { bg: '#F6E3F1', fg: '#7B2A66' },
   lorenzo: { bg: '#FFF1C9', fg: '#7A5400' },
@@ -131,7 +131,7 @@ function TypeChips({ value, onChange }: { value: TripType[]; onChange: (v: TripT
             type="button"
             className="chip"
             aria-pressed={on}
-            style={on ? { background: '#2E7D5B', color: '#fff' } : { background: '#fff', color: '#1E2320', border: '1px solid #D9DAD4' }}
+            style={on ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--card)', color: 'var(--ink)', border: '1px solid var(--line)' }}
             onClick={() => onChange(on ? value.filter((x) => x !== t.id) : [...value, t.id])}
           >
             {t.emoji} {t.label}
@@ -251,7 +251,7 @@ function TripScreen({ store, state, ctx, trip, back }: { store: Store; state: St
                 key={w.id}
                 className="chip"
                 aria-pressed={filter === w.id}
-                style={filter === w.id ? { background: '#fff', color: '#1F5C41' } : { background: 'rgba(255,255,255,.16)', color: '#fff' }}
+                style={filter === w.id ? { background: 'var(--card)', color: 'var(--brand-ink)' } : { background: 'rgba(255,255,255,.16)', color: '#fff' }}
                 onClick={() => setFilter(w.id)}
               >
                 {w.label}
@@ -309,7 +309,7 @@ function TripScreen({ store, state, ctx, trip, back }: { store: Store; state: St
                 <li key={i.id} className={i.done ? 'bought' : undefined}>
                   <div className="row">
                     <button className="row-main" onClick={() => toggle(i)} aria-label={`${i.done ? 'Desmarcar' : 'Marcar'}: ${i.name}`}>
-                      <span className="ring" style={i.done ? { background: '#2E7D5B', borderColor: '#2E7D5B' } : { borderColor: '#2E7D5B' }}>
+                      <span className="ring" style={i.done ? { background: 'var(--brand)', borderColor: 'var(--brand)' } : { borderColor: 'var(--brand)' }}>
                         {i.done && <Check />}
                       </span>
                       <span className="row-text">
@@ -409,7 +409,7 @@ function TemplateScreen({ store, state, ctx, back }: { store: Store; state: Stor
               key={w.id}
               className="chip"
               aria-pressed={who === w.id}
-              style={who === w.id ? { background: '#fff', color: '#1F5C41' } : { background: 'rgba(255,255,255,.16)', color: '#fff' }}
+              style={who === w.id ? { background: 'var(--card)', color: 'var(--brand-ink)' } : { background: 'rgba(255,255,255,.16)', color: '#fff' }}
               onClick={() => setWho(w.id)}
             >
               {w.label}

@@ -69,7 +69,7 @@ export function Compra({ store, state, ctx, tabs }: { store: Store; state: Store
           >
             <span
               className="ring"
-              style={isBought ? { background: '#2E7D5B', borderColor: '#2E7D5B' } : { borderColor: tone.dot }}
+              style={isBought ? { background: 'var(--brand)', borderColor: 'var(--brand)' } : { borderColor: tone.dot }}
             >
               {isBought && <Check />}
             </span>

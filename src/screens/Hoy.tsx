@@ -72,11 +72,14 @@ export function Hoy({
     <div className="screen">
       <header className="band">
         <div className="band-top" style={{ alignItems: 'flex-start' }}>
-          <div>
-            <div className="band-kicker">{fecha}</div>
-            <h1>
-              {saludo()}, {name}
-            </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span className="door" aria-hidden />
+            <div>
+              <div className="band-kicker">{fecha}</div>
+              <h1>
+                {saludo()}, {name}
+              </h1>
+            </div>
           </div>
           <button className="icon-btn" aria-label="Ajustes" onClick={openSettings} style={{ marginRight: -10, color: '#fff' }}>
             <Gear />
@@ -201,7 +204,7 @@ export function Hoy({
                       }
                       aria-label={t.list === 'pagos' ? `Ver pago: ${t.text}` : `Marcar como hecho: ${t.text}`}
                     >
-                      <span className="ring" style={{ borderColor: '#2E7D5B' }}>
+                      <span className="ring" style={{ borderColor: 'var(--brand)' }}>
                         {t.done && <Check />}
                       </span>
                       <span className="row-text">

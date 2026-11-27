@@ -31,11 +31,11 @@ export function Setup({ defaultName, onDone }: { defaultName: string; onDone: ()
             Uno de los dos crea el hogar. El otro se une con el código que aparece después en Más → Hogar.
           </p>
         </div>
-        <div className="tabs" style={{ background: '#E3EFE7' }}>
-          <button type="button" aria-pressed={mode === 'create'} onClick={() => setMode('create')} style={{ color: '#1F5C41' }}>
+        <div className="tabs" style={{ background: 'var(--brand-soft)' }}>
+          <button type="button" aria-pressed={mode === 'create'} onClick={() => setMode('create')} style={{ color: 'var(--brand-ink)' }}>
             Crear hogar
           </button>
-          <button type="button" aria-pressed={mode === 'join'} onClick={() => setMode('join')} style={{ color: '#1F5C41' }}>
+          <button type="button" aria-pressed={mode === 'join'} onClick={() => setMode('join')} style={{ color: 'var(--brand-ink)' }}>
             Unirme con código
           </button>
         </div>

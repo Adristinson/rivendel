@@ -32,7 +32,7 @@ export function Cuentas({ store, state, ctx, back, tabs }: { store: Store; state
     return (
       <li key={e.id}>
         <button className="row-main" onClick={() => setEditing({ mode: e.kind, entry: e })}>
-          <span className="ledger-icon" style={e.kind === 'pago' ? { background: '#E3EFE7', color: '#1F5C41' } : undefined}>
+          <span className="ledger-icon" style={e.kind === 'pago' ? { background: 'var(--brand-soft)', color: 'var(--brand-ink)' } : undefined}>
             {e.kind === 'pago' ? '⇄' : '€'}
           </span>
           <span className="row-text">
@@ -114,7 +114,7 @@ export function Cuentas({ store, state, ctx, back, tabs }: { store: Store; state
         {closed.length > 0 && (
           <section className="group">
             <div className="section-head">
-              <h2 className="group-title" style={{ background: '#E3EFE7', color: '#1F5C41' }}>
+              <h2 className="group-title" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>
                 Histórico de saldos
               </h2>
               <span className="small">{closed.length === 1 ? '1 saldo' : `${closed.length} saldos`}</span>
@@ -128,7 +128,7 @@ export function Cuentas({ store, state, ctx, back, tabs }: { store: Store; state
                 return (
                   <li key={st.id}>
                     <button className="row-main" aria-expanded={isOpen} onClick={() => setOpenSettlement(isOpen ? null : st.id)}>
-                      <span className="ledger-icon" style={{ background: '#E3EFE7', color: '#1F5C41' }}>
+                      <span className="ledger-icon" style={{ background: 'var(--brand-soft)', color: 'var(--brand-ink)' }}>
                         ✓
                       </span>
                       <span className="row-text">
@@ -292,7 +292,7 @@ function EntrySheet({
                     key={c}
                     className="chip"
                     aria-pressed={concept === c}
-                    style={concept === c ? { background: '#2E7D5B', color: '#fff' } : { background: '#fff', border: '1px solid #D9DAD4', color: '#1E2320' }}
+                    style={concept === c ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--card)', border: '1px solid var(--line)', color: 'var(--ink)' }}
                     onClick={() => setConcept(c)}
                   >
                     {c}
