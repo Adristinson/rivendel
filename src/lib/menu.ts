@@ -1,4 +1,4 @@
-import type { Data, Ingredient, ListItem, Meal, MenuSlot, Op, Product, Recipe } from './types';
+import type { Data, FreezerItem, Ingredient, ListItem, Meal, MenuSlot, Op, Product, Recipe } from './types';
 import { capitalize, norm, otherCategory, type Ctx } from './logic';
 
 /* ───────────────────────── Ingredientes ───────────────────────── */
@@ -260,7 +260,12 @@ export function nextSlotKey(day: number, meal: Meal): { day: number; meal: Meal 
 }
 
 /** Lo que se come en un hueco, resolviendo "sale para dos días". */
-export function slotDish(data: Data, week: string, day: number, meal: Meal): { recipe?: Recipe; text?: string; leftover: boolean } | null {
+export function slotDish(
+  data: Data,
+  week: string,
+  day: number,
+  meal: Meal,
+): { recipe?: Recipe; text?: string; freezer?: FreezerItem; leftover: boolean } | null {
   const s = getSlot(data, week, day, meal);
   if (!s) return null;
   if (s.leftover) {
@@ -270,7 +275,8 @@ export function slotDish(data: Data, week: string, day: number, meal: Meal): { r
   }
   const recipe = s.recipe_id ? data.recipes.find((r) => r.id === s.recipe_id) : undefined;
   if (!recipe && !s.text) return null;
-  return { recipe, text: s.text ?? undefined, leftover: false };
+  const freezer = s.freezer_id ? (data.freezer ?? []).find((f) => f.id === s.freezer_id) : undefined;
+  return { recipe, text: s.text ?? undefined, freezer, leftover: false };
 }
 
 export function slotRow(ctx: Ctx, week: string, day: number, meal: Meal, patch: Partial<MenuSlot>): MenuSlot {
@@ -282,6 +288,8 @@ export function slotRow(ctx: Ctx, week: string, day: number, meal: Meal, patch: 
     recipe_id: null,
     text: null,
     leftover: false,
+    freezer_id: null,
+    freezer_taken: false,
     updated_at: ctx.now(),
     ...patch,
   };
@@ -339,13 +347,62 @@ export function proposeRecipe(data: Data, opts: ProposeOpts = {}): Recipe | unde
 }
 
 /** Rellena los huecos vacíos de la semana con recetas del recetario. */
-export function proposeWeek(data: Data, week: string, ctx: Ctx, random?: () => number): Op[] {
+/* ───────────────────────── Congelador en el menú ───────────────────────── */
+
+/** Lo que conviene gastar: lo más antiguo, con al menos 3 semanas, que no esté ya en el menú. */
+export const FREEZER_PROPOSE_DAYS = 21;
+export const FREEZER_PER_WEEK = 2;
+
+export function freezerToUse(data: Data, today: string, minDays = FREEZER_PROPOSE_DAYS): FreezerItem[] {
+  const planned = new Set(data.slots.filter((s) => s.freezer_id && !s.freezer_taken).map((s) => s.freezer_id!));
+  const limit = isoDate(new Date(parseDate(today).getTime() - minDays * 864e5));
+  return (data.freezer ?? [])
+    .filter((f) => f.portions > 0 && !planned.has(f.id) && f.frozen_on <= limit)
+    .sort((a, b) => a.frozen_on.localeCompare(b.frozen_on));
+}
+
+export function freezerSlotPatch(item: FreezerItem): Partial<MenuSlot> {
+  return { text: item.name, freezer_id: item.id, freezer_taken: false };
+}
+
+/** Recordatorio de sacar a descongelar: lo del congelador previsto para hoy y mañana. */
+export function thawReminders(data: Data, now = new Date()): { slot: MenuSlot; item: FreezerItem; when: 'hoy' | 'mañana' }[] {
+  const out: { slot: MenuSlot; item: FreezerItem; when: 'hoy' | 'mañana' }[] = [];
+  for (const [offset, when] of [[0, 'hoy'], [1, 'mañana']] as const) {
+    const d = new Date(now.getTime() + offset * 864e5);
+    const day = (d.getDay() + 6) % 7;
+    if (day > 4) continue;
+    const week = weekStartOf(d);
+    for (const meal of MEALS) {
+      const s = getSlot(data, week, day, meal);
+      const item = s?.freezer_id ? (data.freezer ?? []).find((f) => f.id === s.freezer_id) : undefined;
+      if (s && item && !s.freezer_taken) out.push({ slot: s, item, when });
+    }
+  }
+  return out;
+}
+
+/** "Ya está fuera": quita una ración del congelador y lo marca en el hueco. */
+export function takeOutOps(slot: MenuSlot, item: FreezerItem, now: string): Op[] {
+  const ops: Op[] = [{ kind: 'upsertRow', table: 'menu_slots', row: { ...slot, freezer_taken: true, updated_at: now } }];
+  if (item.portions <= 1) ops.push({ kind: 'deleteRows', table: 'freezer', match: { id: item.id } });
+  else ops.push({ kind: 'upsertRow', table: 'freezer', row: { ...item, portions: item.portions - 1, updated_at: now } });
+  return ops;
+}
+
+export function proposeWeek(data: Data, week: string, ctx: Ctx, random?: () => number, today = isoDate(new Date())): Op[] {
   const ops: Op[] = [];
   const used = new Set(data.slots.filter((s) => s.week_start === week && s.recipe_id).map((s) => s.recipe_id!));
+  const fromFreezer = freezerToUse(data, today).slice(0, FREEZER_PER_WEEK);
   for (const day of WEEKDAYS) {
     for (const meal of MEALS) {
       const s = getSlot(data, week, day, meal);
       if (s && (s.recipe_id || s.text || s.leftover)) continue;
+      const f = fromFreezer.shift();
+      if (f) {
+        ops.push({ kind: 'upsertRow', table: 'menu_slots', row: slotRow(ctx, week, day, meal, freezerSlotPatch(f)) });
+        continue;
+      }
       const r = proposeRecipe(data, { meal, exclude: used, random });
       if (!r) return ops;
       used.add(r.id);

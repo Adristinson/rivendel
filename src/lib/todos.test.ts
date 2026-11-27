@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { complete, dueLabel, dueToday, frozenLabel, lastDone, nextDue, setLastDone, sortFreezer, sortOpen } from './todos';
+import { annualTotal, complete, dueLabel, dueToday, frozenLabel, payments, lastDone, nextDue, setLastDone, sortFreezer, sortOpen } from './todos';
 import type { FreezerItem, Todo } from './types';
 
 const T = (p: Partial<Todo>): Todo => ({
@@ -62,6 +62,24 @@ describe('aviso en Hoy', () => {
   });
   it('una tarea que se repite sin fecha aún sale en Hoy', () => {
     expect(dueToday([T({ repeat: 'trimestral', due: null })], '2026-11-24')).toHaveLength(1);
+  });
+});
+
+describe('gastos anuales', () => {
+  const ibi = T({ id: 'ibi', list: 'pagos', text: 'IBI', amount: 380, repeat: 'anual', due: '2026-12-01', notify: true });
+  const seguro = T({ id: 's', list: 'pagos', text: 'Seguro coche', amount: 30, repeat: 'mensual', due: '2026-12-20' });
+  it('salen en Hoy una semana antes y se quedan hasta pagarlos', () => {
+    expect(dueToday([ibi], '2026-11-23')).toHaveLength(0);
+    expect(dueToday([ibi], '2026-11-24')).toHaveLength(1);
+    expect(dueToday([ibi], '2026-12-10')).toHaveLength(1);
+    const paid = complete(ibi, '2026-11-28', 'now');
+    expect(paid.due).toBe('2027-12-01'); // fecha fija, aunque se pague antes
+    expect(paid.done_log).toEqual(['2026-11-28']);
+    expect(dueToday([paid], '2026-12-10')).toHaveLength(0);
+  });
+  it('total al año y orden por fecha', () => {
+    expect(annualTotal([ibi, seguro])).toBe(740);
+    expect(payments([seguro, ibi]).map((t) => t.id)).toEqual(['ibi', 's']);
   });
 });
 

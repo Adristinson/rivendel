@@ -3,7 +3,7 @@ import type { Store, StoreState } from '../lib/store';
 import type { Ctx } from '../lib/logic';
 import type { FreezerItem, Repeat, Todo, TodoList } from '../lib/types';
 import { isoDate } from '../lib/menu';
-import { complete, doneOf, dueLabel, fmtDay, frozenLabel, IDEA_TAGS, lastDone, LISTS, nextDue, openOf, REPEATS, setLastDone, sortFreezer } from '../lib/todos';
+import { complete, doneOf, isLongRepeat, dueLabel, fmtDay, frozenLabel, IDEA_TAGS, lastDone, LISTS, nextDue, openOf, REPEATS, setLastDone, sortFreezer } from '../lib/todos';
 import { Back, Check, Minus, Plus } from '../icons';
 
 type Tab = TodoList | 'congelador';
@@ -387,7 +387,12 @@ function TodoSheet({ todo, close, save, remove }: { todo: Todo; close: () => voi
                       aria-pressed={t.repeat === r.id}
                       onClick={() => {
                         const last = lastDone(t);
-                        setT({ ...t, repeat: r.id as Repeat, due: last ? nextDue(last, r.id as Repeat) : (t.due ?? isoDate(new Date())) });
+                        setT({
+                          ...t,
+                          repeat: r.id as Repeat,
+                          due: last ? nextDue(last, r.id as Repeat) : (t.due ?? isoDate(new Date())),
+                          notify: t.notify || isLongRepeat(r.id as Repeat),
+                        });
                       }}
                     >
                       {r.label.replace('Cada ', '')}
@@ -415,6 +420,23 @@ function TodoSheet({ todo, close, save, remove }: { todo: Todo; close: () => voi
                       </p>
                     )}
                   </>
+                )}
+                {(t.due || t.repeat) && (
+                  <button
+                    type="button"
+                    className="toggle-row"
+                    role="switch"
+                    aria-checked={!!t.notify}
+                    onClick={() => setT({ ...t, notify: !t.notify })}
+                  >
+                    <span style={{ flex: 1, textAlign: 'left' }}>
+                      Avisar al móvil
+                      <span className="small" style={{ display: 'block', fontWeight: 400 }}>
+                        Un aviso la mañana del día que toca
+                      </span>
+                    </span>
+                    <span className={`switch${t.notify ? ' on' : ''}`} aria-hidden />
+                  </button>
                 )}
               </>
             )}

@@ -12,10 +12,12 @@ import {
   reviewForRecipes,
   slotDish,
   slotRow,
+  takeOutOps,
+  thawReminders,
   weekRecipeIds,
   weekStartOf,
 } from './menu';
-import type { Data, Recipe } from './types';
+import type { Data, FreezerItem, MenuSlot, Recipe } from './types';
 
 let n = 0;
 const ctx: Ctx = { householdId: 'h', by: 'Adri', now: () => '2026-11-21T10:00:00Z', newId: () => `id${++n}` };
@@ -35,6 +37,9 @@ function base(): Data {
     members: [],
     todos: [],
     freezer: [],
+    packTemplate: [],
+    trips: [],
+    tripItems: [],
   };
 }
 
@@ -147,5 +152,29 @@ describe('revisión y lista', () => {
     d = applyOps(d, removeRecipeFromList(d, 'b', ctx.now()));
     expect(d.items.find((i) => i.product_id === 'ceb')?.qty).toBe(2);
     expect(d.items.find((i) => i.product_id === 'pat')).toBeUndefined();
+  });
+});
+
+describe('congelador en el menú', () => {
+  const F = (id: string, frozen_on: string, portions = 2): FreezerItem => ({ id, household_id: 'h', name: 'Plato ' + id, portions, frozen_on, note: null, created_by: null, created_at: '', updated_at: '' });
+  it('proponer semana gasta primero lo más antiguo del congelador (máx. 2)', () => {
+    const d = { ...base(), recipes: [R('p', 'Pasta'), R('q', 'Pescado')], freezer: [F('nuevo', '2026-11-20'), F('viejo', '2026-08-01'), F('medio', '2026-10-01'), F('vacio', '2026-07-01', 0)] };
+    const ops = proposeWeek(d, '2026-11-30', ctx, () => 0, '2026-11-27');
+    const rows = ops.map((o) => (o as { row: MenuSlot }).row);
+    expect(rows.slice(0, 2).map((r) => [r.day, r.meal, r.freezer_id, r.text])).toEqual([
+      [0, 'comida', 'viejo', 'Plato viejo'],
+      [0, 'cena', 'medio', 'Plato medio'],
+    ]);
+    expect(rows.slice(2).every((r) => r.recipe_id && !r.freezer_id)).toBe(true);
+  });
+  it('recordar sacarlo la víspera y descontar la ración al sacarlo', () => {
+    const item = F('l', '2026-10-01', 1);
+    const slot = slotRow(ctx, '2026-11-23', 4, 'cena', { text: 'Lentejas', freezer_id: 'l' }); // viernes 27
+    const d = { ...base(), freezer: [item], slots: [slot] };
+    expect(thawReminders(d, new Date('2026-11-26T09:00:00')).map((r) => r.when)).toEqual(['mañana']);
+    expect(thawReminders(d, new Date('2026-11-27T09:00:00')).map((r) => r.when)).toEqual(['hoy']);
+    const ops = takeOutOps(slot, item, 'now');
+    expect(ops[1]).toEqual({ kind: 'deleteRows', table: 'freezer', match: { id: 'l' } });
+    expect(thawReminders({ ...d, slots: [{ ...slot, freezer_taken: true }] }, new Date('2026-11-27T09:00:00'))).toHaveLength(0);
   });
 });

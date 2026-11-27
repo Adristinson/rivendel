@@ -12,7 +12,7 @@ export interface StoreState {
   error: string | null;
 }
 
-const EMPTY: Data = { categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [], ledger: [], members: [], todos: [], freezer: [] };
+const EMPTY: Data = { categories: [], products: [], items: [], recipes: [], ingredients: [], weeks: [], slots: [], ledger: [], members: [], todos: [], freezer: [], packTemplate: [], trips: [], tripItems: [] };
 
 interface PgError {
   message?: string;
@@ -89,6 +89,9 @@ export class Store {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'ledger' }, () => this.scheduleRefetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, () => this.scheduleRefetch())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'freezer' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pack_template' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => this.scheduleRefetch())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_items' }, () => this.scheduleRefetch())
       .subscribe();
     void this.flush();
   }
@@ -225,8 +228,8 @@ export class Store {
       case 'upsertRow':
         res = await supabase.from(op.table).upsert(op.row as never, { onConflict: TABLE_PK[op.table].join(',') });
         // Si la base de datos aún no tiene el historial de tareas (migración 006), guardamos sin él.
-        if (res.error && op.table === 'todos' && /done_log/.test(res.error.message ?? '')) {
-          const { done_log: _omit, ...rest } = op.row as unknown as Record<string, unknown>;
+        if (res.error && op.table === 'todos' && /done_log|amount|notify/.test(res.error.message ?? '')) {
+          const { done_log: _a, amount: _b, notify: _c, ...rest } = op.row as unknown as Record<string, unknown>;
           res = await supabase.from('todos').upsert(rest as never, { onConflict: 'id' });
         }
         break;
@@ -242,7 +245,7 @@ export class Store {
 
   async refetch(): Promise<void> {
     const h = this.householdId;
-    const [c, p, i, r, g, w, s, l, m, t, f] = await Promise.all([
+    const [c, p, i, r, g, w, s, l, m, t, f, pt, tr, ti] = await Promise.all([
       supabase.from('categories').select('*').eq('household_id', h),
       supabase.from('products').select('*').eq('household_id', h),
       supabase.from('list_items').select('*').eq('household_id', h),
@@ -254,6 +257,9 @@ export class Store {
       supabase.from('members').select('household_id, user_id, display_name').eq('household_id', h),
       supabase.from('todos').select('*').eq('household_id', h),
       supabase.from('freezer').select('*').eq('household_id', h),
+      supabase.from('pack_template').select('*').eq('household_id', h),
+      supabase.from('trips').select('*').eq('household_id', h),
+      supabase.from('trip_items').select('*').eq('household_id', h),
     ]);
     const err = c.error ?? p.error ?? i.error;
     // Si el módulo 2 aún no está en la base de datos, la lista sigue funcionando.
@@ -274,6 +280,9 @@ export class Store {
       members: optional(m),
       todos: optional(t).map((x) => ({ ...(x as object), done_log: (x as { done_log?: string[] }).done_log ?? [] })),
       freezer: optional(f),
+      packTemplate: optional(pt),
+      trips: optional(tr),
+      tripItems: optional(ti),
     } as Data;
     this.persist();
     this.state = { ...this.state, online: true, loaded: true };

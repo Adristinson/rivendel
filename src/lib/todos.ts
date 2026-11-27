@@ -56,7 +56,8 @@ export function isLongRepeat(r: Repeat | null): boolean {
  */
 export function complete(t: Todo, today: string, now: string): Todo {
   if (t.repeat && !t.done) {
-    const base = isLongRepeat(t.repeat) ? today : t.due && t.due > today ? t.due : today;
+    // Los pagos tienen fecha fija (el IBI vence cada año el mismo día), aunque se paguen antes o después.
+    const base = t.list === 'pagos' && t.due ? t.due : isLongRepeat(t.repeat) ? today : t.due && t.due > today ? t.due : today;
     const log = [...(t.done_log ?? []).filter((d) => d !== today), today].sort();
     return { ...t, due: nextDue(base, t.repeat), done_at: now, done_log: log, updated_at: now };
   }
@@ -97,7 +98,15 @@ export function doneOf(todos: Todo[], list: TodoList): Todo[] {
 /** Para Hoy: lo de Casa y Comprar que vence hoy o está atrasado. */
 /** Lo que sale en Hoy: lo que toca hoy o está atrasado, y se queda ahí hasta marcarlo como hecho. */
 export function dueToday(todos: Todo[], today = isoDate(new Date())): Todo[] {
-  return sortOpen(todos.filter((t) => !t.done && t.list !== 'ideas' && ((t.due && t.due <= today) || (t.repeat && !t.due))));
+  const soon = isoDate(new Date(parseDate(today).getTime() + PAY_NOTICE_DAYS * 864e5));
+  return sortOpen(
+    todos.filter(
+      (t) =>
+        !t.done &&
+        t.list !== 'ideas' &&
+        ((t.due && t.due <= (t.list === 'pagos' ? soon : today)) || (t.repeat && !t.due)),
+    ),
+  );
 }
 
 export function lastDone(t: Todo): string | null {
@@ -138,4 +147,25 @@ export function frozenLabel(it: FreezerItem, today: string): { text: string; old
 /** Lo más antiguo primero: es lo que hay que gastar antes. */
 export function sortFreezer(items: FreezerItem[]): FreezerItem[] {
   return [...items].filter((i) => i.portions > 0).sort((a, b) => a.frozen_on.localeCompare(b.frozen_on) || a.name.localeCompare(b.name));
+}
+
+// Gastos anuales ------------------------------------------------------------------
+
+/** Los pagos salen en Hoy desde una semana antes. */
+export const PAY_NOTICE_DAYS = 7;
+
+const PER_YEAR: Record<Repeat, number> = { semanal: 52, quincenal: 26, mensual: 12, trimestral: 4, semestral: 2, anual: 1 };
+
+export function perYear(t: Todo): number {
+  return (t.amount ?? 0) * (t.repeat ? PER_YEAR[t.repeat] : 1);
+}
+
+export function payments(todos: Todo[]): Todo[] {
+  return todos
+    .filter((t) => t.list === 'pagos' && !t.done)
+    .sort((a, b) => (a.due ?? '9999').localeCompare(b.due ?? '9999') || a.text.localeCompare(b.text, 'es'));
+}
+
+export function annualTotal(todos: Todo[]): number {
+  return Math.round(payments(todos).filter((t) => t.repeat).reduce((s, t) => s + perYear(t), 0) * 100) / 100;
 }

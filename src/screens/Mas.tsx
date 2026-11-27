@@ -6,6 +6,7 @@ import { capitalize, findProduct, otherCategory, type Ctx } from '../lib/logic';
 import { COLOR_NAMES, tone } from '../lib/palette';
 import { Back, Chevron, Trash } from '../icons';
 import { Cuentas } from './Cuentas';
+import { disablePush, enablePush, pushState, testPush, type PushState } from '../lib/push';
 import { Pendientes } from './Pendientes';
 
 type View = 'menu' | 'catalogo' | 'hogar' | 'cuentas' | 'pendientes';
@@ -26,6 +27,26 @@ export function Mas({
   close?: () => void;
 }) {
   const [view, setView] = useState<View>(initial);
+  const [push, setPush] = useState<PushState | 'loading'>('loading');
+  const [pushMsg, setPushMsg] = useState<string | null>(null);
+  useEffect(() => {
+    pushState().then(setPush, () => setPush('unsupported'));
+  }, []);
+
+  async function togglePush() {
+    setPushMsg(null);
+    try {
+      if (push === 'on') setPush(await disablePush());
+      else {
+        const s = await enablePush(household.id);
+        setPush(s);
+        if (s === 'on') setPushMsg(null);
+        if (s === 'blocked') setPushMsg('Los avisos están bloqueados para esta app: actívalos en los ajustes del navegador o del móvil.');
+      }
+    } catch (e) {
+      setPushMsg('No se pudieron activar: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  }
 
   if (view === 'catalogo') return <Catalogo store={store} state={state} ctx={ctx} back={() => setView('menu')} />;
   if (view === 'hogar') return <Hogar household={household} back={() => setView('menu')} />;
@@ -60,6 +81,10 @@ export function Mas({
       menu_slots: state.data.slots,
       ledger: state.data.ledger,
       todos: state.data.todos,
+      freezer: state.data.freezer,
+      pack_template: state.data.packTemplate,
+      trips: state.data.trips,
+      trip_items: state.data.tripItems,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -103,6 +128,38 @@ export function Mas({
             </button>
           </li>
           <li>
+            <button onClick={togglePush} disabled={push === 'loading' || push === 'unsupported'}>
+              <span style={{ flex: 1 }}>
+                Avisos en este móvil
+                <div className="sub">
+                  {push === 'on'
+                    ? 'Activados · toca para desactivar'
+                    : push === 'blocked'
+                      ? 'Bloqueados en el navegador'
+                      : push === 'unsupported'
+                        ? 'Este navegador no admite avisos (instala la app en la pantalla de inicio)'
+                        : 'Filtro del agua, pagos y cosas con fecha límite · toca para activar'}
+                </div>
+              </span>
+              <span className={`switch${push === 'on' ? ' on' : ''}`} aria-hidden />
+            </button>
+          </li>
+          {push === 'on' && (
+            <li>
+              <button
+                onClick={async () => {
+                  setPushMsg('Enviando…');
+                  setPushMsg((await testPush().catch(() => false)) ? 'Enviado: debería llegarte en unos segundos.' : 'No se pudo enviar el aviso de prueba.');
+                }}
+              >
+                <span style={{ flex: 1 }}>
+                  Enviar un aviso de prueba
+                  <div className="sub">Para comprobar que llegan</div>
+                </span>
+              </button>
+            </li>
+          )}
+          <li>
             <button onClick={exportar}>
               <span style={{ flex: 1 }}>
                 Exportar datos
@@ -112,6 +169,11 @@ export function Mas({
           </li>
         </ul>
 
+        {pushMsg && <p className="note">{pushMsg}</p>}
+        <p className="note">
+          Los avisos llegan por la mañana (sobre las 9) el día que toca algo marcado con «Avisar al móvil», y una semana antes de cada pago. Cada uno de
+          vosotros tiene que activarlos en su móvil.
+        </p>
         <p className="note">Has entrado como {ctx.by}.</p>
         <button className="secondary" onClick={() => supabase.auth.signOut()}>
           Cerrar sesión

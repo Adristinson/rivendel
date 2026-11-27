@@ -13,6 +13,7 @@ import {
   getWeek,
   ingredientOps,
   ingredientsOf,
+  isoDate,
   isIncomplete,
   matchProduct,
   MEALS,
@@ -33,6 +34,7 @@ import {
   type ReviewRow,
 } from '../lib/menu';
 import { imageUrl, removeRecipeImage, uploadRecipeImage } from '../lib/images';
+import { frozenLabel, sortFreezer } from '../lib/todos';
 import { Back, Check, Chevron, Plus, Trash } from '../icons';
 
 export type ComidaSub = 'menu' | 'recetas' | 'compra';
@@ -56,7 +58,8 @@ export function ComidaTabs({ sub, setSub, data }: { sub: ComidaSub; setSub: (s: 
         Recetas
       </button>
       <button role="tab" aria-pressed={sub === 'compra'} aria-selected={sub === 'compra'} onClick={() => setSub('compra')}>
-        Compra{pending > 0 ? ` · ${pending}` : ''}
+        Compra
+        {pending > 0 && <span className="tab-count">{pending}</span>}
       </button>
     </div>
   );
@@ -216,6 +219,7 @@ function MenuView({
                     <span className="slot-meal">{meal === 'comida' ? 'Comida' : 'Cena'}</span>
                     <span className="slot-dish">{dish ? dish.recipe?.name ?? dish.text : '+ Elegir'}</span>
                     {dish?.leftover && <span className="slot-tag">sobras</span>}
+                    {dish?.freezer && !dish.leftover && <span className="slot-tag ice">congelador</span>}
                     {incomplete && <span className="slot-tag warn">sin ingredientes</span>}
                   </button>
                 );
@@ -311,7 +315,11 @@ function SlotSheet({
     .filter((r) => !q || norm(r.name).includes(norm(q)))
     .sort((a, b) => Number(b.favorite) - Number(a.favorite) || a.name.localeCompare(b.name, 'es'));
 
-  function set(patch: { recipe_id?: string | null; text?: string | null; leftover?: boolean }) {
+  const today = isoDate(new Date());
+  const freezerItems = sortFreezer(data.freezer ?? []);
+  const plannedFreezer = new Set(data.slots.filter((s) => s.freezer_id && !s.freezer_taken).map((s) => s.freezer_id!));
+
+  function set(patch: { recipe_id?: string | null; text?: string | null; leftover?: boolean; freezer_id?: string | null }) {
     const ops: Op[] = [];
     const oldRecipe = current && !current.leftover ? current.recipe_id : null;
     const newRecipe = patch.recipe_id ?? null;
@@ -373,6 +381,31 @@ function SlotSheet({
           ) : (
             <div className="note">No hay recetas que encajen.</div>
           )}
+        </div>
+      )}
+
+      {freezerItems.length > 0 && (
+        <div className="form" style={{ gap: 8 }}>
+          <span className="label">Del congelador (lo más antiguo primero)</span>
+          <ul className="menu-list" style={{ maxHeight: 220, overflowY: 'auto' }}>
+            {freezerItems.map((f) => {
+              const age = frozenLabel(f, today);
+              return (
+                <li key={f.id}>
+                  <button onClick={() => set({ text: f.name, freezer_id: f.id })}>
+                    <span style={{ flex: 1 }}>
+                      ❄ {f.name}
+                      <span className="sub" style={age.old ? { color: '#9A2E1E' } : undefined}>
+                        {' '}
+                        · {age.text.toLowerCase()} · {f.portions === 1 ? '1 ración' : `${f.portions} raciones`}
+                        {plannedFreezer.has(f.id) ? ' · ya en el menú' : ''}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
@@ -926,7 +959,7 @@ function RecipeEditor({
 
 /* ───────────────────────── Hoja inferior ───────────────────────── */
 
-function Sheet({ title, close, children }: { title: string; close: () => void; children: React.ReactNode }) {
+export function Sheet({ title, close, children }: { title: string; close: () => void; children: React.ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
     window.addEventListener('keydown', onKey);

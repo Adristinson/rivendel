@@ -9,13 +9,16 @@ import { Setup } from './screens/Setup';
 import { Compra } from './screens/Compra';
 import { Mas } from './screens/Mas';
 import { Hoy } from './screens/Hoy';
-import { dueToday } from './lib/todos';
+import { dueToday, payments } from './lib/todos';
+import { isoDate } from './lib/menu';
 import { Comida, ComidaTabs, type ComidaSub } from './screens/Comida';
 import { Cuentas } from './screens/Cuentas';
 import { Pendientes } from './screens/Pendientes';
-import { Euro, Food, Home, Tasks } from './icons';
+import { Anuales, FinanzasTabs, type FinanzasSub } from './screens/Anuales';
+import { Viajes } from './screens/Viajes';
+import { Euro, Food, Home, Suitcase, Tasks } from './icons';
 
-type Tab = 'hoy' | 'comida' | 'finanzas' | 'pendientes';
+type Tab = 'hoy' | 'comida' | 'finanzas' | 'pendientes' | 'viajes';
 interface Membership {
   household: Household;
   displayName: string;
@@ -110,6 +113,15 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
   const state = useStore(store);
   const [tab, setTabRaw] = useState<Tab>(() => (localStorage.getItem('rivendel:tab') as Tab) || 'hoy');
   const [sub, setSubRaw] = useState<ComidaSub>(() => (localStorage.getItem('rivendel:comida') as ComidaSub) || 'compra');
+  const [fsub, setFsubRaw] = useState<FinanzasSub>(() => (localStorage.getItem('rivendel:finanzas') as FinanzasSub) || 'cuentas');
+  const setFsub = (x: FinanzasSub) => {
+    setFsubRaw(x);
+    try {
+      localStorage.setItem('rivendel:finanzas', x);
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
   const [settings, setSettings] = useState(false);
   const setTab = (t: Tab) => {
     setTabRaw(t);
@@ -144,7 +156,10 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
   );
   const pending = state.data.items.filter((i) => !i.bought).length;
   const dueCount = dueToday(state.data.todos).length;
-  const openTodos = state.data.todos.filter((t) => !t.done && t.list !== 'ideas').length;
+  const openTodos = state.data.todos.filter((t) => !t.done && t.list !== 'ideas' && t.list !== 'pagos').length;
+  const today = isoDate(new Date());
+  const paysDue = dueToday(payments(state.data.todos), today).length;
+  const finTabs = <FinanzasTabs sub={fsub} setSub={setFsub} dueSoon={paysDue} />;
 
   return (
     <div className="app">
@@ -160,7 +175,15 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
               name={displayName}
               goCompra={() => goComida('compra')}
               goComida={() => goComida('menu')}
-              goCuentas={() => setTab('finanzas')}
+              goCuentas={() => {
+                setFsub('cuentas');
+                setTab('finanzas');
+              }}
+              goAnuales={() => {
+                setFsub('anuales');
+                setTab('finanzas');
+              }}
+              goViajes={() => setTab('viajes')}
               goPendientes={() => setTab('pendientes')}
               openSettings={() => setSettings(true)}
             />
@@ -171,7 +194,13 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
             ) : (
               <Comida key={sub} store={store} state={state} ctx={ctx} sub={sub} setSub={setSub} />
             ))}
-          {tab === 'finanzas' && <Cuentas store={store} state={state} ctx={ctx} />}
+          {tab === 'finanzas' &&
+            (fsub === 'anuales' ? (
+              <Anuales store={store} state={state} ctx={ctx} tabs={finTabs} />
+            ) : (
+              <Cuentas store={store} state={state} ctx={ctx} tabs={finTabs} />
+            ))}
+          {tab === 'viajes' && <Viajes store={store} state={state} ctx={ctx} />}
           {tab === 'pendientes' && <Pendientes store={store} state={state} ctx={ctx} />}
         </>
       )}
@@ -199,7 +228,10 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
           Comida
         </button>
         <button aria-current={tab === 'finanzas' && !settings ? 'page' : undefined} onClick={() => setTab('finanzas')}>
-          <Euro />
+          <span className="ico">
+            <Euro />
+            {paysDue > 0 && <span className="badge">{paysDue}</span>}
+          </span>
           Finanzas
         </button>
         <button aria-current={tab === 'pendientes' && !settings ? 'page' : undefined} onClick={() => setTab('pendientes')}>
@@ -208,6 +240,10 @@ function Home_({ membership, userId }: { membership: Membership; userId: string 
             {openTodos > 0 && <span className="badge">{openTodos}</span>}
           </span>
           Pendientes
+        </button>
+        <button aria-current={tab === 'viajes' && !settings ? 'page' : undefined} onClick={() => setTab('viajes')}>
+          <Suitcase />
+          Viajes
         </button>
       </nav>
     </div>

@@ -7,7 +7,8 @@ import { proposeTodayOps, todayMenu } from './Comida';
 import { Chevron } from '../icons';
 import { balance, fmtEuro, otherMember } from '../lib/accounts';
 import { complete, dueLabel, dueToday } from '../lib/todos';
-import { isoDate } from '../lib/menu';
+import { isoDate, takeOutOps, thawReminders } from '../lib/menu';
+import { soonTrip, tripProgress, tripWhen } from '../lib/trips';
 import { Check, Gear } from '../icons';
 
 function saludo() {
@@ -25,6 +26,8 @@ export function Hoy({
   goCompra,
   goComida,
   goCuentas,
+  goAnuales,
+  goViajes,
   goPendientes,
   openSettings,
 }: {
@@ -35,6 +38,8 @@ export function Hoy({
   goCompra: () => void;
   goComida: () => void;
   goCuentas: () => void;
+  goAnuales: () => void;
+  goViajes: () => void;
   goPendientes: () => void;
   openSettings: () => void;
 }) {
@@ -47,6 +52,9 @@ export function Hoy({
   const menu = todayMenu(state.data);
   const other = otherMember(state.data, ctx.userId ?? '');
   const bal = other ? balance(state.data.ledger, ctx.userId ?? '', other.user_id) : 0;
+  const thaw = thawReminders(state.data);
+  const trip = soonTrip(state.data, today);
+  const tripP = trip ? tripProgress(state.data, trip.id) : null;
   const [rejected, setRejected] = useState<Record<Meal, Set<string>>>({ comida: new Set(), cena: new Set() });
   const [proposed, setProposed] = useState<Record<Meal, string | null>>({ comida: null, cena: null });
 
@@ -105,7 +113,7 @@ export function Hoy({
                       <span style={{ flex: 1, minWidth: 0 }}>
                         <span className="sub">{label}</span>
                         <div style={{ fontWeight: 600 }}>
-                          {dish ? (dish.recipe?.name ?? dish.text) + (dish.leftover ? ' (sobras)' : '') : 'Sin decidir'}
+                          {dish ? (dish.freezer ? '🧊 ' : '') + (dish.recipe?.name ?? dish.text) + (dish.leftover ? ' (sobras)' : '') : 'Sin decidir'}
                         </div>
                       </span>
                       {(!dish || proposed[meal]) && state.data.recipes.length > 0 && (
@@ -121,6 +129,61 @@ export function Hoy({
           )}
         </section>
 
+        {thaw.length > 0 && (
+          <section className="group">
+            <h2 className="group-title" style={{ background: '#E1ECFB', color: '#1D4E8F' }}>
+              Sacar del congelador
+            </h2>
+            <ul className="card">
+              {thaw.map(({ slot, item, when }) => (
+                <li key={`${slot.week_start}-${slot.day}-${slot.meal}`}>
+                  <div className="row">
+                    <span className="row-main" style={{ cursor: 'default' }}>
+                      <span className="ledger-icon" style={{ background: '#E1ECFB', color: '#1D4E8F' }}>
+                        ❄
+                      </span>
+                      <span className="row-text">
+                        <span className="row-name">{item.name}</span>
+                        <span className="row-meta">
+                          Para {slot.meal} de {when} · {when === 'mañana' ? 'sácalo esta noche' : 'si no lo has sacado ya'}
+                        </span>
+                      </span>
+                    </span>
+                    <button
+                      className="secondary"
+                      style={{ height: 36, padding: '0 12px', width: 'auto', marginRight: 8 }}
+                      onClick={() => store.dispatch(takeOutOps(slot, item, ctx.now()))}
+                    >
+                      Ya está fuera
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {trip && tripP && (
+          <section className="group">
+            <h2 className="group-title" style={{ background: '#ECE6FA', color: '#4B2E91' }}>
+              Próximo viaje
+            </h2>
+            <ul className="menu-list">
+              <li>
+                <button onClick={goViajes}>
+                  <span style={{ flex: 1 }}>
+                    {trip.name}
+                    <div className="sub">
+                      {tripWhen(trip, today)} · {tripP.total ? `maleta ${tripP.done}/${tripP.total}` : 'maleta sin preparar'}
+                    </div>
+                  </span>
+                  <Chevron />
+                </button>
+              </li>
+            </ul>
+          </section>
+        )}
+
         {tasks.length > 0 && (
           <section className="group">
             <h2 className="group-title" style={{ background: '#FCE4DF', color: '#9A2E1E' }}>
@@ -133,8 +196,10 @@ export function Hoy({
                   <li key={t.id}>
                     <button
                       className="row-main"
-                      onClick={() => store.dispatch([{ kind: 'upsertRow', table: 'todos', row: complete(t, today, ctx.now()) }])}
-                      aria-label={`Marcar como hecho: ${t.text}`}
+                      onClick={() =>
+                        t.list === 'pagos' ? goAnuales() : store.dispatch([{ kind: 'upsertRow', table: 'todos', row: complete(t, today, ctx.now()) }])
+                      }
+                      aria-label={t.list === 'pagos' ? `Ver pago: ${t.text}` : `Marcar como hecho: ${t.text}`}
                     >
                       <span className="ring" style={{ borderColor: '#2E7D5B' }}>
                         {t.done && <Check />}
@@ -142,8 +207,8 @@ export function Hoy({
                       <span className="row-text">
                         <span className="row-name">{t.text}</span>
                         <span className="row-meta">
-                          {t.list === 'comprar' ? 'Comprar' : 'Casa'}
-                          {d && d.tone === 'late' ? ` · ${d.text.toLowerCase()}` : ''}
+                          {t.list === 'pagos' ? `Pago${t.amount != null ? ' · ' + fmtEuro(t.amount) : ''}` : t.list === 'comprar' ? 'Comprar' : 'Casa'}
+                          {d && (d.tone === 'late' || t.list === 'pagos') ? ` · ${d.text.toLowerCase()}` : ''}
                         </span>
                       </span>
                     </button>
@@ -189,7 +254,7 @@ export function Hoy({
                 Pendientes
                 <div className="sub">
                   {(() => {
-                    const p = state.data.todos.filter((t) => !t.done && t.list !== 'ideas').length;
+                    const p = state.data.todos.filter((t) => !t.done && t.list !== 'ideas' && t.list !== 'pagos').length;
                     const i = state.data.todos.filter((t) => !t.done && t.list === 'ideas').length;
                     return `${p} pendiente${p === 1 ? '' : 's'} · ${i} idea${i === 1 ? '' : 's'} de planes`;
                   })()}

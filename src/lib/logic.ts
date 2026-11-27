@@ -27,6 +27,9 @@ const TABLE_KEY = {
   ledger: 'ledger',
   todos: 'todos',
   freezer: 'freezer',
+  pack_template: 'packTemplate',
+  trips: 'trips',
+  trip_items: 'tripItems',
 } as const;
 
 /** Columnas que identifican una fila en cada tabla. */
@@ -38,6 +41,9 @@ export const TABLE_PK: Record<Table, string[]> = {
   ledger: ['id'],
   todos: ['id'],
   freezer: ['id'],
+  pack_template: ['id'],
+  trips: ['id'],
+  trip_items: ['id'],
 };
 
 function sameKey(table: Table, a: Record<string, unknown>, b: Record<string, unknown>) {

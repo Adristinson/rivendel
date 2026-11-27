@@ -37,6 +37,9 @@ function base(): Data {
     members: [],
     todos: [],
     freezer: [],
+    packTemplate: [],
+    trips: [],
+    tripItems: [],
   };
 }
 

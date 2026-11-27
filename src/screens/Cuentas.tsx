@@ -9,7 +9,7 @@ import { Back } from '../icons';
 
 type Editing = { mode: 'gasto' | 'pago'; entry?: LedgerEntry } | null;
 
-export function Cuentas({ store, state, ctx, back }: { store: Store; state: StoreState; ctx: Ctx; back?: () => void }) {
+export function Cuentas({ store, state, ctx, back, tabs }: { store: Store; state: StoreState; ctx: Ctx; back?: () => void; tabs?: React.ReactNode }) {
   const { data } = state;
   const me = ctx.userId ?? '';
   const other = otherMember(data, me);
@@ -71,6 +71,7 @@ export function Cuentas({ store, state, ctx, back }: { store: Store; state: Stor
           <div className="band-kicker">Finanzas · cuentas claras</div>
           <h1 style={{ fontSize: 26 }}>{headline}</h1>
         </div>
+        {tabs}
         {other && (
           <div className="menu-actions">
             <button className="add-big" onClick={() => setEditing({ mode: 'gasto' })}>

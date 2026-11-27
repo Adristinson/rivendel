@@ -85,6 +85,8 @@ export interface MenuSlot {
   recipe_id: string | null;
   text: string | null;
   leftover: boolean;
+  freezer_id?: string | null; // plato sacado del congelador
+  freezer_taken?: boolean; // ya se ha sacado a descongelar
   updated_at: string;
 }
 
@@ -103,7 +105,7 @@ export interface LedgerEntry {
   updated_at: string;
 }
 
-export type TodoList = 'casa' | 'comprar' | 'ideas';
+export type TodoList = 'casa' | 'comprar' | 'ideas' | 'pagos';
 export type Repeat = 'semanal' | 'quincenal' | 'mensual' | 'trimestral' | 'semestral' | 'anual';
 
 export interface Todo {
@@ -118,6 +120,8 @@ export interface Todo {
   done: boolean;
   done_at: string | null;
   done_log?: string[]; // fechas (YYYY-MM-DD) en que se hizo, para tareas que se repiten
+  amount?: number | null; // gastos anuales (lista 'pagos')
+  notify?: boolean; // aviso al móvil el día que toca
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -135,6 +139,44 @@ export interface FreezerItem {
   updated_at: string;
 }
 
+export type PackWho = 'comun' | 'adri' | 'almu' | 'lorenzo' | 'salida';
+export type TripType = 'playa' | 'nieve' | 'ciudad' | 'campo' | 'abuelos' | 'avion';
+
+export interface PackTemplateItem {
+  id: string;
+  household_id: string;
+  name: string;
+  who: PackWho;
+  types: TripType[]; // vacío = en todos los viajes
+  sort: number;
+  created_at: string;
+}
+
+export interface Trip {
+  id: string;
+  household_id: string;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
+  types: TripType[];
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TripItem {
+  id: string;
+  household_id: string;
+  trip_id: string;
+  name: string;
+  who: PackWho;
+  done: boolean;
+  sort: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Data {
   categories: Category[];
   products: Product[];
@@ -147,10 +189,13 @@ export interface Data {
   members: Member[];
   todos: Todo[];
   freezer: FreezerItem[];
+  packTemplate: PackTemplateItem[];
+  trips: Trip[];
+  tripItems: TripItem[];
 }
 
-export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger' | 'todos' | 'freezer';
-export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry | Todo | FreezerItem;
+export type Table = 'recipes' | 'recipe_ingredients' | 'menu_weeks' | 'menu_slots' | 'ledger' | 'todos' | 'freezer' | 'pack_template' | 'trips' | 'trip_items';
+export type Row = Recipe | Ingredient | MenuWeek | MenuSlot | LedgerEntry | Todo | FreezerItem | PackTemplateItem | Trip | TripItem;
 
 /** Cambios que se aplican al momento en el móvil y se envían a Supabase cuando hay conexión. */
 export type Op =
