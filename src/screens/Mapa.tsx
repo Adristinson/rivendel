@@ -17,10 +17,9 @@ function WorldMap({ groups, onPick }: { groups: Group[]; onPick: (g: Group) => v
   useEffect(() => {
     if (!el.current || map.current) return;
     const m = L.map(el.current, { worldCopyJump: true, zoomControl: false, attributionControl: true }).setView([30, 0], 1);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      subdomains: 'abcd',
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(m);
     m.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
     L.control.zoom({ position: 'bottomright' }).addTo(m);
@@ -110,7 +109,7 @@ export function Mapa({ store, state, ctx, tabs, fromTrip, clearFromTrip }: { sto
           </>
         )}
         <p className="small" style={{ fontSize: 11 }}>
-          Mapa y búsqueda de sitios: © OpenStreetMap y CARTO. Necesitan conexión.
+          Mapa y búsqueda de sitios: © OpenStreetMap. Necesitan conexión.
         </p>
       </div>
 

@@ -239,3 +239,4 @@ h1, h2, .sheet-head h2, .day-title, .group-title { font-family: var(--serif); }
 .door::after { content: ''; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #FBE39A, #D9A73A 60%, #8A6418); left: 50%; top: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 2px rgba(0,0,0,.4); }
 .world-map { height: 300px; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: #DCE6D0; flex-shrink: 0; z-index: 0; }
 .world-map .leaflet-control-attribution { font-size: 9px; }
+.world-map .leaflet-tile-pane { filter: sepia(.25) saturate(.85); }
