@@ -10,7 +10,19 @@ import { Sheet } from './Comida';
 
 type Group = ReturnType<typeof groupPlaces>[number];
 
-function CountryMap({ view, visited, groups, onPick }: { view: MapView; visited: Set<string>; groups: Group[]; onPick: (g: Group) => void }) {
+function CountryMap({
+  view,
+  visited,
+  groups,
+  onPick,
+  onCountry,
+}: {
+  view: MapView;
+  visited: Set<string>;
+  groups: Group[];
+  onPick: (g: Group) => void;
+  onCountry: (id: string) => void;
+}) {
   const svg = useRef<SVGSVGElement>(null);
   const g = useRef<SVGGElement>(null);
   const zb = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -53,7 +65,15 @@ function CountryMap({ view, visited, groups, onPick }: { view: MapView; visited:
         <rect width={m.w} height={m.h} fill="#DCE6D7" />
         <g ref={g}>
           {m.paths.map((p, i) => (
-            <path key={p.id + '-' + i} d={p.d} fill={visited.has(p.id) ? '#6E8F45' : '#EFE3C4'} stroke={visited.has(p.id) ? '#4E6E2E' : '#C9B48A'} strokeWidth={(view === 'world' ? 0.25 : 0.5) / k} />
+            <path
+              key={p.id + '-' + i}
+              d={p.d}
+              fill={visited.has(p.id) ? '#6E8F45' : '#EFE3C4'}
+              stroke={visited.has(p.id) ? '#4E6E2E' : '#C9B48A'}
+              strokeWidth={(view === 'world' ? 0.25 : 0.5) / k}
+              style={visited.has(p.id) ? { cursor: 'pointer' } : undefined}
+              onClick={visited.has(p.id) ? () => onCountry(p.id) : undefined}
+            />
           ))}
           {pins.map(({ gr, xy }) => (
             <circle
@@ -114,6 +134,7 @@ export function Mapa({ store, state, ctx, tabs, fromTrip, clearFromTrip }: { sto
     fromTrip ? { q: fromTrip.name, month: toMonth(fromTrip.start_date), trip_id: fromTrip.id } : null,
   );
   const [picked, setPicked] = useState<Group | null>(null);
+  const [countryId, setCountryId] = useState<string | null>(null);
 
   return (
     <div className="screen">
@@ -141,7 +162,7 @@ export function Mapa({ store, state, ctx, tabs, fromTrip, clearFromTrip }: { sto
               Mundo
             </button>
           </div>
-          <CountryMap view={view} visited={visited} groups={groups} onPick={setPicked} />
+          <CountryMap view={view} visited={visited} groups={groups} onPick={setPicked} onCountry={setCountryId} />
           <div className="map-count">
             <span className="map-big">{nCountries}</span>
             <span className="small">
@@ -162,18 +183,18 @@ export function Mapa({ store, state, ctx, tabs, fromTrip, clearFromTrip }: { sto
           <ul className="card">
             {byCountry.map((c) => (
               <li key={c.id}>
-                <div className="country-row">
+                <button className="country-row" onClick={() => setCountryId(c.id)} aria-label={`Ver los sitios de ${c.name}`}>
                   <span className="country-swatch" aria-hidden />
                   <span className="row-text">
                     <span className="row-name country-name">{c.name}</span>
                     {c.groups.map((gr) => (
-                      <button key={gr.key} className="place-link" onClick={() => setPicked(gr)}>
+                      <span key={gr.key} className="place-link">
                         {gr.name} · {gr.visits.map((v) => monthLabel(v.visited_on)).join(', ')}
-                      </button>
+                      </span>
                     ))}
                   </span>
                   <span className="country-count">{c.groups.reduce((n, gr) => n + gr.visits.length, 0) === 1 ? '1 visita' : `${c.groups.reduce((n, gr) => n + gr.visits.length, 0)} visitas`}</span>
-                </div>
+                </button>
               </li>
             ))}
           </ul>
@@ -218,6 +239,52 @@ export function Mapa({ store, state, ctx, tabs, fromTrip, clearFromTrip }: { sto
           }}
         />
       )}
+
+      {countryId &&
+        (() => {
+          const c = byCountry.find((x) => x.id === countryId);
+          if (!c) return null;
+          const rows = c.groups
+            .flatMap((gr) => gr.visits.map((v) => ({ gr, v })))
+            .sort((a, b) => (b.v.visited_on ?? '').localeCompare(a.v.visited_on ?? ''));
+          const cities = c.groups.length;
+          return (
+            <Sheet title={c.name} close={() => setCountryId(null)}>
+              <p className="note">
+                {cities === 1 ? '1 sitio' : `${cities} sitios`} · {rows.length === 1 ? '1 visita' : `${rows.length} visitas`}
+              </p>
+              <ul className="menu-list">
+                {rows.map(({ gr, v }) => (
+                  <li key={v.id}>
+                    <button
+                      onClick={() => {
+                        setCountryId(null);
+                        setPicked(gr);
+                      }}
+                    >
+                      <span style={{ flex: 1 }}>
+                        <span className="country-name" style={{ fontSize: 17 }}>
+                          {gr.name}
+                        </span>
+                        {v.note && <div className="sub">{v.note}</div>}
+                      </span>
+                      <span className="country-count">{monthLabel(v.visited_on)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button
+                className="secondary"
+                onClick={() => {
+                  setCountryId(null);
+                  setAdding({ q: '', month: null, trip_id: null });
+                }}
+              >
+                + Añadir otro sitio
+              </button>
+            </Sheet>
+          );
+        })()}
 
       {picked && (
         <Sheet title={picked.name} close={() => setPicked(null)}>

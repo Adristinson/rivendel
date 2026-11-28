@@ -247,7 +247,7 @@ h1, h2, .sheet-head h2, .day-title, .group-title { font-family: var(--serif); }
 .map-big { font-family: var(--serif); font-weight: 700; font-size: 34px; color: var(--brand-ink); line-height: 1; }
 .map-bar { height: 8px; border-radius: 999px; background: var(--line-soft); margin: 0 6px; overflow: hidden; }
 .map-bar span { display: block; height: 100%; background: #6E8F45; border-radius: 999px; }
-.country-row { display: flex; gap: 12px; padding: 12px 14px; align-items: flex-start; }
+.country-row { display: flex; gap: 12px; padding: 12px 14px; align-items: flex-start; width: 100%; border: 0; background: transparent; text-align: left; font: inherit; color: inherit; }
 .country-swatch { width: 14px; height: 14px; border-radius: 4px; background: #6E8F45; margin-top: 5px; flex: none; }
 .country-name { font-family: var(--serif); font-weight: 700; font-size: 17px; }
 .place-link { display: block; border: 0; background: transparent; padding: 3px 0; text-align: left; color: var(--muted); font-size: 14px; }
