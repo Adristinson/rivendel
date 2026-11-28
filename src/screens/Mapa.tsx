@@ -1,59 +1,115 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { select } from 'd3-selection';
+import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
 import type { Store, StoreState } from '../lib/store';
 import type { Ctx } from '../lib/logic';
 import type { Place, Trip } from '../lib/types';
-import { groupPlaces, monthLabel, placeStats, searchPlaces, toMonth, type GeoResult } from '../lib/places';
+import { groupPlaces, monthLabel, searchPlaces, toMonth, type GeoResult } from '../lib/places';
+import { countryAt, MAP, projection, WORLD_COUNTRIES, type MapView } from '../lib/geo';
 import { Sheet } from './Comida';
 
 type Group = ReturnType<typeof groupPlaces>[number];
 
-function WorldMap({ groups, onPick }: { groups: Group[]; onPick: (g: Group) => void }) {
-  const el = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
-  const layer = useRef<L.LayerGroup | null>(null);
+function CountryMap({ view, visited, groups, onPick }: { view: MapView; visited: Set<string>; groups: Group[]; onPick: (g: Group) => void }) {
+  const svg = useRef<SVGSVGElement>(null);
+  const g = useRef<SVGGElement>(null);
+  const zb = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const [k, setK] = useState(1);
+  const m = view === 'world' ? MAP.world : MAP.europe;
+  const proj = useMemo(() => projection(view), [view]);
 
   useEffect(() => {
-    if (!el.current || map.current) return;
-    const m = L.map(el.current, { worldCopyJump: true, zoomControl: false, attributionControl: true }).setView([30, 0], 1);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(m);
-    m.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
-    L.control.zoom({ position: 'bottomright' }).addTo(m);
-    layer.current = L.layerGroup().addTo(m);
-    map.current = m;
+    if (!svg.current || !g.current) return;
+    const z = zoom<SVGSVGElement, unknown>()
+      .scaleExtent([1, view === 'world' ? 12 : 8])
+      .translateExtent([
+        [0, 0],
+        [m.w, m.h],
+      ])
+      .on('zoom', (e) => {
+        g.current?.setAttribute('transform', e.transform.toString());
+        setK(e.transform.k);
+      });
+    const sel = select(svg.current);
+    sel.call(z).call(z.transform, zoomIdentity);
+    zb.current = z;
     return () => {
-      m.remove();
-      map.current = null;
+      sel.on('.zoom', null);
     };
-  }, []);
+  }, [view, m.w, m.h]);
 
-  useEffect(() => {
-    const m = map.current;
-    const lg = layer.current;
-    if (!m || !lg) return;
-    lg.clearLayers();
-    for (const g of groups) {
-      const mk = L.circleMarker([g.lat, g.lng], { radius: 8, color: '#33501E', weight: 2, fillColor: '#E9B949', fillOpacity: 1 });
-      mk.bindTooltip(`${g.name} · ${g.visits.map((v) => monthLabel(v.visited_on)).join(', ')}`);
-      mk.on('click', () => onPick(g));
-      mk.addTo(lg);
-    }
-    if (groups.length === 1) m.setView([groups[0].lat, groups[0].lng], 5);
-    else if (groups.length > 1) m.fitBounds(L.latLngBounds(groups.map((g) => [g.lat, g.lng] as [number, number])), { padding: [30, 30], maxZoom: 6 });
-    setTimeout(() => m.invalidateSize(), 50);
-  }, [groups, onPick]);
+  const pins = groups
+    .map((gr) => ({ gr, xy: proj([gr.lng, gr.lat]) }))
+    .filter((p): p is { gr: Group; xy: [number, number] } => !!p.xy && p.xy[0] >= 0 && p.xy[0] <= m.w && p.xy[1] >= 0 && p.xy[1] <= m.h);
 
-  return <div ref={el} className="world-map" role="img" aria-label="Mapa con los sitios visitados" />;
+  return (
+    <div className="country-map">
+      <svg
+        ref={svg}
+        viewBox={`0 0 ${m.w} ${m.h}`}
+        role="img"
+        aria-label={view === 'world' ? 'Mapamundi con los países visitados en verde' : 'Mapa de Europa con los países visitados en verde'}
+      >
+        <rect width={m.w} height={m.h} fill="#DCE6D7" />
+        <g ref={g}>
+          {m.paths.map((p, i) => (
+            <path key={p.id + '-' + i} d={p.d} fill={visited.has(p.id) ? '#6E8F45' : '#EFE3C4'} stroke={visited.has(p.id) ? '#4E6E2E' : '#C9B48A'} strokeWidth={(view === 'world' ? 0.25 : 0.5) / k} />
+          ))}
+          {pins.map(({ gr, xy }) => (
+            <circle
+              key={gr.key}
+              cx={xy[0]}
+              cy={xy[1]}
+              r={4.5 / Math.sqrt(k)}
+              fill="#E9B949"
+              stroke="#33501E"
+              strokeWidth={1.4 / Math.sqrt(k)}
+              style={{ cursor: 'pointer' }}
+              onClick={() => onPick(gr)}
+            >
+              <title>{gr.name}</title>
+            </circle>
+          ))}
+        </g>
+      </svg>
+      {k > 1.05 && (
+        <button
+          className="map-reset"
+          onClick={() => svg.current && zb.current && select(svg.current).call(zb.current.transform, zoomIdentity)}
+        >
+          Ver todo
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function Mapa({ store, state, ctx, tabs, fromTrip, clearFromTrip }: { store: Store; state: StoreState; ctx: Ctx; tabs: React.ReactNode; fromTrip?: Trip | null; clearFromTrip?: () => void }) {
   const places = state.data.places ?? [];
   const groups = groupPlaces(places);
-  const stats = placeStats(places);
+  const [view, setView] = useState<MapView>(() => (localStorage.getItem('rivendel:mapa') as MapView) || 'europe');
+  const changeView = (v: MapView) => {
+    setView(v);
+    try {
+      localStorage.setItem('rivendel:mapa', v);
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
+  // País de cada sitio a partir de sus coordenadas
+  const byCountry = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; groups: Group[] }>();
+    for (const gr of groups) {
+      const id = countryAt(gr.lng, gr.lat) ?? 'x-' + (gr.visits[0].country ?? gr.name);
+      const e = map.get(id) ?? { id, name: gr.visits[0].country ?? gr.name, groups: [] };
+      e.groups.push(gr);
+      map.set(id, e);
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  }, [groups]);
+  const visited = useMemo(() => new Set(byCountry.map((c) => c.id)), [byCountry]);
+  const nCountries = byCountry.filter((c) => !c.id.startsWith('x-')).length;
+  const nVisits = places.length;
   const [adding, setAdding] = useState<{ q: string; month: string | null; trip_id: string | null } | null>(
     fromTrip ? { q: fromTrip.name, month: toMonth(fromTrip.start_date), trip_id: fromTrip.id } : null,
   );
@@ -76,40 +132,54 @@ export function Mapa({ store, state, ctx, tabs, fromTrip, clearFromTrip }: { sto
         </div>
       </header>
       <div className="scroll">
-        <WorldMap groups={groups} onPick={setPicked} />
+        <div className="map-card">
+          <div className="seg map-seg" role="tablist" aria-label="Zona del mapa">
+            <button role="tab" aria-pressed={view === 'europe'} aria-selected={view === 'europe'} onClick={() => changeView('europe')}>
+              Europa
+            </button>
+            <button role="tab" aria-pressed={view === 'world'} aria-selected={view === 'world'} onClick={() => changeView('world')}>
+              Mundo
+            </button>
+          </div>
+          <CountryMap view={view} visited={visited} groups={groups} onPick={setPicked} />
+          <div className="map-count">
+            <span className="map-big">{nCountries}</span>
+            <span className="small">
+              de {WORLD_COUNTRIES} países · {groups.length === 1 ? '1 sitio' : `${groups.length} sitios`}
+              {nVisits > groups.length ? ` · ${nVisits} visitas` : ''}
+            </span>
+          </div>
+          <div className="map-bar">
+            <span style={{ width: `${Math.max(2, (nCountries / WORLD_COUNTRIES) * 100)}%` }} />
+          </div>
+        </div>
         {places.length === 0 ? (
           <div className="empty">
             <strong>El mapa está en blanco</strong>
             Añade los sitios donde habéis estado con su fecha. Cada viaje terminado también se puede pasar al mapa desde su ficha.
           </div>
         ) : (
-          <>
-            <p className="small">
-              {stats.places === 1 ? '1 sitio' : `${stats.places} sitios`} · {stats.countries === 1 ? '1 país' : `${stats.countries} países`}
-              {stats.visits > stats.places ? ` · ${stats.visits} visitas` : ''}
-            </p>
-            <ul className="card">
-              {groups.map((g) => (
-                <li key={g.key}>
-                  <button className="row-main" onClick={() => setPicked(g)}>
-                    <span className="ledger-icon" style={{ background: '#F6E7BE', color: '#7A5232' }}>
-                      ●
-                    </span>
-                    <span className="row-text">
-                      <span className="row-name">{g.name}</span>
-                      <span className="row-meta">
-                        {g.detail ? `${g.detail} · ` : ''}
-                        {g.visits.map((v) => monthLabel(v.visited_on)).join(', ')}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </>
+          <ul className="card">
+            {byCountry.map((c) => (
+              <li key={c.id}>
+                <div className="country-row">
+                  <span className="country-swatch" aria-hidden />
+                  <span className="row-text">
+                    <span className="row-name country-name">{c.name}</span>
+                    {c.groups.map((gr) => (
+                      <button key={gr.key} className="place-link" onClick={() => setPicked(gr)}>
+                        {gr.name} · {gr.visits.map((v) => monthLabel(v.visited_on)).join(', ')}
+                      </button>
+                    ))}
+                  </span>
+                  <span className="country-count">{c.groups.reduce((n, gr) => n + gr.visits.length, 0) === 1 ? '1 visita' : `${c.groups.reduce((n, gr) => n + gr.visits.length, 0)} visitas`}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
         <p className="small" style={{ fontSize: 11 }}>
-          Mapa y búsqueda de sitios: © OpenStreetMap. Necesitan conexión.
+          Siluetas de países: Natural Earth. Búsqueda de sitios: © OpenStreetMap (necesita conexión).
         </p>
       </div>
 
